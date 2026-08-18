@@ -46,6 +46,9 @@ visuelles Protokoll der Sichtung.
 - **Lokale Transkription mit Whisper** (whisper.cpp, Modell `large-v3-turbo`) — läuft komplett offline
 - **Projekte speichern/laden** als `.sighting`-Paket, mit Autosave
 - **Export** als PDF, DOCX (inkl. Bilder & Timecodes) und CSV (Timecode-Liste)
+- **MXF/XDCAM-Unterstützung** — Broadcast-Footage (z. B. XDCAM-MXF), das AVFoundation
+  nicht direkt öffnen kann, wird beim Import automatisch und verlustfrei nach .mov
+  umgepackt (kein Re-Encode, nur Container-Tausch via ffmpeg)
 
 ## Screenshots
 
@@ -59,7 +62,7 @@ visuelles Protokoll der Sichtung.
 - macOS 14 oder neuer (Apple Silicon empfohlen)
 - [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/) (`xcode-select --install`)
 - [Homebrew](https://brew.sh)
-- Für die Transkription: [`whisper-cpp`](https://github.com/ggml-org/whisper.cpp) und `ffmpeg`
+- Für Transkription und MXF-Import: [`whisper-cpp`](https://github.com/ggml-org/whisper.cpp) und `ffmpeg`
 
 ```bash
 brew install whisper-cpp ffmpeg

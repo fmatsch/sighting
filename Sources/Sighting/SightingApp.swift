@@ -126,6 +126,14 @@ struct ContentView: View {
         } message: {
             Text(transcription.lastError ?? "")
         }
+        .alert("Video konnte nicht geöffnet werden", isPresented: Binding(
+            get: { player.importError != nil },
+            set: { if !$0 { player.importError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(player.importError ?? "")
+        }
     }
 }
 

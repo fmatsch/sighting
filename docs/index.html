@@ -264,6 +264,11 @@
         <h3>Export als PDF, DOCX &amp; CSV</h3>
         <p>Fertige Sichtungsnotizen inklusive Bilder als Dokument oder als Timecode-Tabelle exportieren.</p>
       </div>
+      <div class="feature-card">
+        <div class="icon">🎞</div>
+        <h3>MXF/XDCAM-Broadcast-Footage</h3>
+        <p>Container wie XDCAM-MXF, die macOS nicht direkt öffnen kann, werden beim Import automatisch und verlustfrei umgepackt.</p>
+      </div>
     </div>
   </section>
 
@@ -289,10 +294,10 @@
     <ul class="req-list">
       <li>macOS 14 oder neuer (Apple Silicon empfohlen)</li>
       <li>Xcode Command Line Tools (<code>xcode-select --install</code>)</li>
-      <li><a href="https://brew.sh">Homebrew</a>, sowie <code>whisper-cpp</code> und <code>ffmpeg</code> für die Transkription</li>
+      <li><a href="https://brew.sh">Homebrew</a>, sowie <code>whisper-cpp</code> und <code>ffmpeg</code> für Transkription und MXF-Import</li>
     </ul>
 
-    <div class="code-block"><span class="comment"># Abhängigkeiten für die Transkription</span>
+    <div class="code-block"><span class="comment"># Abhängigkeiten für Transkription &amp; MXF-Import</span>
 brew install whisper-cpp ffmpeg
 
 <span class="comment"># App bauen und starten</span>

@@ -51,6 +51,18 @@ struct PlayerPane: View {
                     }
                     .foregroundStyle(Color.white.opacity(0.55))
                 }
+                if player.isImporting {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .controlSize(.large)
+                            .tint(.white)
+                        Text("Video wird importiert …")
+                            .foregroundStyle(.white)
+                    }
+                    .padding(24)
+                    .background(.black.opacity(0.55))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture { player.togglePlay() }

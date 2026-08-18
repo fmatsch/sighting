@@ -32,7 +32,12 @@ final class AppModel: ObservableObject {
 
     func openVideoPanel() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.audiovisualContent]
+        // .mxf ist auf manchen Macs nicht als audiovisueller Inhalt registriert
+        // (hängt von installierter Software ab) — explizit ergänzen, damit
+        // XDCAM-MXF-Dateien immer auswählbar sind.
+        var types: [UTType] = [.audiovisualContent]
+        if let mxf = UTType(filenameExtension: "mxf") { types.append(mxf) }
+        panel.allowedContentTypes = types
         panel.message = "Video zum Sichten auswählen"
         if panel.runModal() == .OK, let url = panel.url {
             openVideo(url: url)

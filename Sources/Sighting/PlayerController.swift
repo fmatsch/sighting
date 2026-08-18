@@ -14,10 +14,17 @@ final class PlayerController: ObservableObject {
     @Published var playbackRate: Float = 1.0
     @Published var inPoint: Double?
     @Published var outPoint: Double?
+    @Published var isImporting = false
+    @Published var importError: String?
 
     private var timeObserver: Any?
     private var statusCancellable: AnyCancellable?
     private var imageGenerator: AVAssetImageGenerator?
+    private var importTempDir: URL?
+
+    /// Containerformate, die AVFoundation nicht selbst demuxen kann und die
+    /// erst verlustfrei nach .mov umgepackt werden müssen (z. B. XDCAM-MXF).
+    private static let needsRemux: Set<String> = ["mxf"]
 
     static let availableRates: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
@@ -37,11 +44,80 @@ final class PlayerController: ObservableObject {
 
     deinit {
         if let timeObserver { player.removeTimeObserver(timeObserver) }
+        if let importTempDir { try? FileManager.default.removeItem(at: importTempDir) }
     }
 
     func open(url: URL) {
-        let asset = AVURLAsset(url: url)
-        videoURL = url
+        importError = nil
+        if Self.needsRemux.contains(url.pathExtension.lowercased()) {
+            importAndOpen(sourceURL: url)
+        } else {
+            loadAsset(playableURL: url, sourceURL: url)
+        }
+    }
+
+    /// Verpackt Container wie MXF verlustfrei (kein Re-Encode) in .mov um,
+    /// da AVFoundation solche Container nicht selbst öffnen kann — den
+    /// enthaltenen Codec (z. B. XDCAM-MPEG-2) beherrscht es hingegen.
+    private func importAndOpen(sourceURL: URL) {
+        guard let ffmpeg = WhisperService.findExecutable("ffmpeg") else {
+            importError = "Für \(sourceURL.pathExtension.uppercased())-Dateien wird ffmpeg benötigt. " +
+                "Installation im Terminal: brew install ffmpeg"
+            return
+        }
+
+        if let previous = importTempDir {
+            try? FileManager.default.removeItem(at: previous)
+        }
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sighting-import-\(UUID().uuidString)")
+        importTempDir = tmpDir
+        let outputURL = tmpDir.appendingPathComponent(
+            sourceURL.deletingPathExtension().lastPathComponent + ".mov")
+
+        isImporting = true
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: ffmpeg)
+            process.arguments = [
+                "-hide_banner", "-loglevel", "error", "-y",
+                "-i", sourceURL.path, "-c", "copy", outputURL.path,
+            ]
+            let errPipe = Pipe()
+            process.standardError = errPipe
+
+            do {
+                try process.run()
+            } catch {
+                DispatchQueue.main.async {
+                    self?.isImporting = false
+                    self?.importError = "Import fehlgeschlagen: \(error.localizedDescription)"
+                }
+                return
+            }
+            process.waitUntilExit()
+            let errText = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            DispatchQueue.main.async {
+                self?.isImporting = false
+                guard process.terminationStatus == 0,
+                      FileManager.default.fileExists(atPath: outputURL.path) else {
+                    self?.importError = "Die Datei „\(sourceURL.lastPathComponent)“ konnte nicht gelesen werden." +
+                        (errText.isEmpty ? "" : "\n\(errText.suffix(300))")
+                    return
+                }
+                self?.loadAsset(playableURL: outputURL, sourceURL: sourceURL)
+            }
+        }
+    }
+
+    private func loadAsset(playableURL: URL, sourceURL: URL) {
+        let asset = AVURLAsset(url: playableURL)
+        videoURL = sourceURL
         inPoint = nil
         outPoint = nil
         duration = 0
@@ -56,8 +132,11 @@ final class PlayerController: ObservableObject {
         imageGenerator = generator
 
         Task { @MainActor in
-            if let d = try? await asset.load(.duration), d.seconds.isFinite {
-                self.duration = d.seconds
+            do {
+                let d = try await asset.load(.duration)
+                if d.seconds.isFinite { self.duration = d.seconds }
+            } catch {
+                self.importError = "Video konnte nicht geöffnet werden: \(error.localizedDescription)"
             }
         }
     }
