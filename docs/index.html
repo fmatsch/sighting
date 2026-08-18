@@ -36,7 +36,7 @@
     text-align: center;
     padding: 96px 24px 64px;
   }
-  header.hero img {
+  header.hero .hero-icon {
     width: 120px; height: 120px;
     border-radius: 27px;
     box-shadow: 0 20px 60px -10px rgba(245, 166, 35, 0.35), 0 8px 24px rgba(0,0,0,0.5);
@@ -55,7 +55,7 @@
     margin: 0 auto 36px;
   }
   .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
-  .badges img { height: 22px; }
+  .badges img { width: auto; height: 22px; }
 
   .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
   .btn {
@@ -131,6 +131,7 @@
   .shots figure { margin: 0; }
   .shots img {
     width: 100%;
+    height: auto;
     display: block;
     border-radius: 14px;
     border: 1px solid var(--border);
@@ -195,7 +196,7 @@
 <body>
 
 <header class="hero">
-  <img src="assets/icon.png" alt="Sighting App-Icon">
+  <img class="hero-icon" src="assets/icon.png" alt="Sighting App-Icon">
   <h1>Sighting</h1>
   <p class="tagline">
     Videos sichten, Notizen mit Timecode &amp; Screenshot automatisch mitschreiben,
