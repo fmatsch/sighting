@@ -79,6 +79,14 @@
     border: 1px solid var(--border);
   }
 
+  .download-note {
+    margin: 18px 0 0;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+  .download-note a { color: var(--text-dim); text-decoration: underline; }
+  .download-note a:hover { color: var(--accent); }
+
   section { padding: 56px 0; }
   section.features { padding-top: 24px; }
 
@@ -208,9 +216,13 @@
     <img src="https://img.shields.io/badge/swift-6.3-orange.svg" alt="Swift 6.3">
   </div>
   <div class="cta-row">
-    <a class="btn btn-primary" href="https://github.com/fmatsch/sighting">Auf GitHub ansehen</a>
-    <a class="btn btn-secondary" href="#start">Installation</a>
+    <a class="btn btn-primary" href="https://github.com/fmatsch/sighting/releases/download/v1.0.0/Sighting.zip">⇩ Download für macOS</a>
+    <a class="btn btn-secondary" href="https://github.com/fmatsch/sighting">Auf GitHub ansehen</a>
   </div>
+  <p class="download-note">
+    Sighting.zip · macOS 14+ · nicht notariert — beim ersten Start per Rechtsklick → „Öffnen" bestätigen.
+    <a href="#start">Lieber selbst aus dem Quellcode bauen?</a>
+  </p>
 </header>
 
 <div class="wrap">

@@ -15,6 +15,12 @@
   <img src="https://img.shields.io/badge/swift-6.3-orange.svg" alt="Swift 6.3">
 </p>
 
+<p align="center">
+  <a href="https://github.com/fmatsch/sighting/releases/latest">⇩ Neueste Version herunterladen</a>
+  &nbsp;·&nbsp;
+  <a href="https://fmatsch.github.io/sighting/">Projektseite</a>
+</p>
+
 ---
 
 ## Worum geht's
