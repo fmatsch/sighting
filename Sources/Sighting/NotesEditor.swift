@@ -109,7 +109,8 @@ struct NotesEditor: NSViewRepresentable {
         private func makeHeader(time: Double) -> NSAttributedString {
             let result = NSMutableAttributedString()
 
-            if let attachment = thumbnailAttachment(time: time) {
+            let screenshotsWanted = AppModel.shared?.includeScreenshots ?? true
+            if screenshotsWanted, let attachment = thumbnailAttachment(time: time) {
                 result.append(NSAttributedString(attachment: attachment))
                 result.append(NSAttributedString(string: "  "))
             }

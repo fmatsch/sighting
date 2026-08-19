@@ -162,6 +162,16 @@ struct ControlBar: View {
                 }
             }
 
+            // Screenshot bei neuer Notiz an/aus
+            Button {
+                app.includeScreenshots.toggle()
+            } label: {
+                Image(systemName: app.includeScreenshots ? "camera.fill" : "video.slash.fill")
+            }
+            .help(app.includeScreenshots
+                  ? "Screenshot bei neuer Notiz einfügen (aktiv) — klicken zum Deaktivieren"
+                  : "Screenshot bei neuer Notiz einfügen (deaktiviert) — klicken zum Aktivieren")
+
             // Transkription
             Button {
                 app.startTranscription()

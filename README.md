@@ -38,7 +38,8 @@ visuelles Protokoll der Sichtung.
 ## Features
 
 - **Zweigeteiltes Layout** — Video oben, Notizen unten, klassischer Sichtungs-Workflow
-- **Automatischer Timecode + Screenshot** beim Beginn einer neuen Notiz
+- **Automatischer Timecode + Screenshot** beim Beginn einer neuen Notiz — der Screenshot-Teil
+  lässt sich per Schalter in der Werkzeugleiste oder im Menü „Sichten" jederzeit ein-/ausschalten
 - **Klickbare Timecodes** — Klick im Text springt im Video an die Stelle
 - **Profi-Steuerung** — 0,5×–2× Geschwindigkeit, Bild-für-Bild, Shortcuts (J/K/L, Leertaste, Pfeile)
 - **Marker & Favoriten** — farbige Marker in der Timeline mit Übersichtsliste

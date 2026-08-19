@@ -67,6 +67,9 @@ struct SightingApp: App {
                 Divider()
                 Button("Segment transkribieren") { appModel.startTranscription() }
                     .keyboardShortcut("t", modifiers: [.command, .shift])
+                Divider()
+                Toggle("Screenshot bei neuer Notiz einfügen", isOn: $appModel.includeScreenshots)
+                    .keyboardShortcut("t", modifiers: [.command, .option])
             }
         }
     }

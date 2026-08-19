@@ -19,12 +19,21 @@ final class AppModel: ObservableObject {
     @Published var showWhisperSetup = false
     @Published var alertMessage: String?
 
+    /// Ob beim Beginn einer neuen Notiz zusätzlich zum Timecode auch ein
+    /// Video-Standbild eingefügt wird. Persistiert über Neustarts hinweg.
+    @Published var includeScreenshots: Bool {
+        didSet { UserDefaults.standard.set(includeScreenshots, forKey: "includeScreenshots") }
+    }
+
     private var keyMonitor: Any?
 
     init(project: ProjectStore, player: PlayerController, transcription: WhisperService) {
         self.project = project
         self.player = player
         self.transcription = transcription
+        self.includeScreenshots = UserDefaults.standard.object(forKey: "includeScreenshots") == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: "includeScreenshots")
         AppModel.shared = self
     }
 
