@@ -50,12 +50,13 @@ visuelles Protokoll der Sichtung.
 - **MXF/XDCAM-Unterstützung** — Broadcast-Footage (z. B. XDCAM-MXF), das AVFoundation
   nicht direkt öffnen kann, wird beim Import automatisch und verlustfrei nach .mov
   umgepackt (kein Re-Encode, nur Container-Tausch via ffmpeg)
-- **KI-Bildbeschreibung (optionales Add-on)** — beschreibt Video-Standbilder lokal per
-  [Ollama](https://ollama.com) + `moondream`; ganz ohne installiertes Ollama bleibt der
-  Rest der App unverändert nutzbar. Manuell per „Bild beschreiben“ oder als
-  **Vollautomatik**, die bei jedem gesetzten Marker automatisch eine Beschreibung anlegt.
-  Die Beschreibungen kommen auf Englisch — `moondream` ist ein sehr kleines, englisch-
-  zentriertes Modell und liefert bei deutschen Prompts unzuverlässige Ergebnisse
+- **KI-Bildbeschreibung auf Deutsch (optionales Add-on)** — beschreibt Video-Standbilder
+  lokal per [Ollama](https://ollama.com) + `moondream` und übersetzt sie automatisch mit
+  einem zweiten kleinen Modell (`qwen2.5:1.5b`) ins Deutsche; ganz ohne installiertes
+  Ollama bleibt der Rest der App unverändert nutzbar. Manuell per „Bild beschreiben“ oder
+  als **Vollautomatik**, die bei jedem gesetzten Marker automatisch eine Beschreibung
+  anlegt. Da zwei Modelle geladen werden, kann der erste Durchlauf je nach freiem
+  Arbeitsspeicher einige Sekunden bis über eine Minute dauern
 
 ## Screenshots
 
@@ -82,6 +83,7 @@ brew install whisper-cpp ffmpeg
 brew install ollama
 brew services start ollama
 ollama pull moondream
+ollama pull qwen2.5:1.5b
 ```
 
 Das Whisper-Modell (`large-v3-turbo`, ca. 1,6 GB) lädt die App beim ersten

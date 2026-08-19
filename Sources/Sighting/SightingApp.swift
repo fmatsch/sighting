@@ -217,25 +217,26 @@ struct WhisperSetupView: View {
     }
 }
 
-/// Einmaliges Setup für die optionale Bildbeschreibung (Ollama + moondream).
-/// Reines Add-on: solange Ollama nicht installiert ist, bleibt alles andere
-/// in der App unverändert nutzbar.
+/// Einmaliges Setup für die optionale Bildbeschreibung (Ollama + moondream
+/// + qwen2.5 für die deutsche Übersetzung). Reines Add-on: solange Ollama
+/// nicht installiert ist, bleibt alles andere in der App unverändert nutzbar.
 struct VisionSetupView: View {
     @EnvironmentObject var vision: VisionDescriptionService
     @EnvironmentObject var app: AppModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var modelReady: Bool?
-    @State private var serverRunning = false
+    @State private var status = VisionDescriptionService.ModelStatus()
     @State private var isChecking = true
+    @State private var currentlyPulling: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("Bildbeschreibung einrichten", systemImage: "text.below.photo")
                 .font(.title3.weight(.semibold))
 
-            Text("Optionales Add-on: erzeugt lokal (ohne Cloud) kurze Bildbeschreibungen " +
-                 "über Ollama mit dem kompakten Vision-Modell „\(VisionDescriptionService.model)“.")
+            Text("Optionales Add-on: erzeugt lokal (ohne Cloud) kurze Bildbeschreibungen über " +
+                 "Ollama mit dem kompakten Vision-Modell „\(VisionDescriptionService.visionModel)“ " +
+                 "und übersetzt sie mit „\(VisionDescriptionService.translationModel)“ ins Deutsche.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
@@ -244,21 +245,22 @@ struct VisionSetupView: View {
                     .fixedSize(horizontal: false, vertical: true)
             } else if isChecking {
                 ProgressView("Prüfe Ollama …").controlSize(.small)
-            } else if !serverRunning {
+            } else if !status.serverRunning {
                 Text("Ollama ist installiert, läuft aber nicht. Im Terminal starten:\n" +
                      "ollama serve\n(oder dauerhaft: brew services start ollama)")
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Erneut prüfen") { check() }
-            } else if modelReady == false {
-                Text("Ollama läuft — das Modell „\(VisionDescriptionService.model)“ fehlt noch.")
-                if vision.isPullingModel {
-                    ProgressView("Lädt … (~1,7 GB, kann einige Minuten dauern)")
+            } else if !status.allReady {
+                VStack(alignment: .leading, spacing: 6) {
+                    modelRow("Bildbeschreibung (moondream, ~1,7 GB)", ready: status.visionReady)
+                    modelRow("Übersetzung (qwen2.5, ~1 GB)", ready: status.translationReady)
+                }
+                if let pulling = currentlyPulling {
+                    ProgressView("Lädt \(pulling) … (kann einige Minuten dauern)")
                         .controlSize(.small)
                 } else {
-                    Button("Modell jetzt laden (~1,7 GB)") {
-                        vision.pullModel { success in if success { check() } }
-                    }
-                    .buttonStyle(.borderedProminent)
+                    Button("Fehlende Modelle jetzt laden") { pullMissing() }
+                        .buttonStyle(.borderedProminent)
                 }
                 if let error = vision.lastError {
                     Text(error).foregroundStyle(.red).font(.caption)
@@ -271,7 +273,7 @@ struct VisionSetupView: View {
             HStack {
                 Spacer()
                 Button("Schließen") { dismiss() }
-                if vision.setupProblem == nil, modelReady == true {
+                if vision.setupProblem == nil, status.allReady {
                     Button("Bild beschreiben") {
                         dismiss()
                         app.describeCurrentFrame()
@@ -281,16 +283,40 @@ struct VisionSetupView: View {
             }
         }
         .padding(20)
-        .frame(width: 440)
+        .frame(width: 460)
         .onAppear { check() }
     }
 
-    private func check() {
+    private func modelRow(_ label: String, ready: Bool) -> some View {
+        Label(label, systemImage: ready ? "checkmark.circle.fill" : "circle")
+            .foregroundStyle(ready ? Color.green : Color.secondary)
+            .font(.callout)
+    }
+
+    private func check(completion: (() -> Void)? = nil) {
         isChecking = true
-        vision.checkStatus { ready, running in
+        vision.checkStatus { newStatus in
             isChecking = false
-            serverRunning = running
-            modelReady = ready
+            status = newStatus
+            completion?()
+        }
+    }
+
+    /// Lädt nacheinander, was noch fehlt (Vision-Modell zuerst, dann Übersetzung),
+    /// und prüft den Status nach jedem Download neu, bevor es weitergeht.
+    private func pullMissing() {
+        if !status.visionReady {
+            currentlyPulling = VisionDescriptionService.visionModel
+            vision.pullModel(VisionDescriptionService.visionModel) { _ in
+                currentlyPulling = nil
+                check { if !status.allReady { pullMissing() } }
+            }
+        } else if !status.translationReady {
+            currentlyPulling = VisionDescriptionService.translationModel
+            vision.pullModel(VisionDescriptionService.translationModel) { _ in
+                currentlyPulling = nil
+                check()
+            }
         }
     }
 }

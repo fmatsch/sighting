@@ -153,8 +153,9 @@ final class AppModel: ObservableObject {
 
     // MARK: Bildbeschreibung (Add-on über Ollama)
 
-    /// Beschreibt das aktuelle Video-Standbild per lokalem Vision-Modell und
-    /// fügt einen Notiz-Block mit Screenshot, Timecode und KI-Text an. Ohne
+    /// Beschreibt das aktuelle Video-Standbild per lokalem Vision-Modell,
+    /// übersetzt die (englische) Beschreibung ins Deutsche und fügt einen
+    /// Notiz-Block mit Screenshot, Timecode und KI-Text an. Ohne
     /// installiertes/laufendes Ollama erscheint nur ein Einrichtungshinweis —
     /// der Rest der App funktioniert unverändert.
     func describeCurrentFrame() {
@@ -166,22 +167,25 @@ final class AppModel: ObservableObject {
         guard let image = player.thumbnail(at: player.currentTime) else { return }
         let time = player.currentTime
 
-        vision.checkStatus { [weak self] modelReady, serverRunning in
+        vision.checkStatus { [weak self] status in
             guard let self else { return }
-            guard serverRunning else {
+            guard status.serverRunning else {
                 self.alertMessage = "Ollama läuft nicht. Im Terminal starten: ollama serve\n" +
                     "(oder dauerhaft: brew services start ollama)"
                 return
             }
-            guard modelReady else {
+            guard status.allReady else {
                 self.showVisionSetup = true
                 return
             }
             self.vision.describe(image: image) { result in
-                if case .success(let text) = result {
-                    self.insertDescription(text, time: time, image: image)
+                guard case .success(let englishText) = result else {
+                    return  // .failure: vision.lastError ist gesetzt und wird als Alert gezeigt
                 }
-                // .failure: vision.lastError ist gesetzt und wird als Alert gezeigt
+                self.vision.translateToGerman(englishText) { translationResult in
+                    let finalText = (try? translationResult.get()) ?? englishText
+                    self.insertDescription(finalText, time: time, image: image)
+                }
             }
         }
     }

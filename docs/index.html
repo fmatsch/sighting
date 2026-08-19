@@ -271,8 +271,8 @@
       </div>
       <div class="feature-card">
         <div class="icon">✨</div>
-        <h3>KI-Bildbeschreibung (Add-on)</h3>
-        <p>Optional per Ollama + moondream, komplett offline. Manuell oder als Vollautomatik bei jedem Marker — ohne Ollama bleibt der Rest der App unverändert.</p>
+        <h3>KI-Bildbeschreibung auf Deutsch (Add-on)</h3>
+        <p>Optional per Ollama, komplett offline — beschreibt Standbilder und übersetzt sie automatisch ins Deutsche. Manuell oder als Vollautomatik bei jedem Marker — ohne Ollama bleibt der Rest der App unverändert.</p>
       </div>
     </div>
   </section>
@@ -314,6 +314,7 @@ brew install whisper-cpp ffmpeg
 brew install ollama
 brew services start ollama
 ollama pull moondream
+ollama pull qwen2.5:1.5b
 
 <span class="comment"># App bauen und starten</span>
 git clone https://github.com/fmatsch/sighting.git
