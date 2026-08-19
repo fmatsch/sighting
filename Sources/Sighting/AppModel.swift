@@ -5,18 +5,23 @@ import UniformTypeIdentifiers
 extension NSAttributedString.Key {
     /// Markiert transkribierte Absätze (für den CSV-Export).
     static let sightingTranscript = NSAttributedString.Key("SightingTranscript")
+    /// Markiert KI-generierte Bildbeschreibungen (für den CSV-Export).
+    static let sightingVisionDescription = NSAttributedString.Key("SightingVisionDescription")
 }
 
-/// Verbindet Player, Projekt und Whisper; enthält Menü-Aktionen und Dialoge.
+/// Verbindet Player, Projekt, Whisper und die optionale Bildbeschreibung;
+/// enthält Menü-Aktionen und Dialoge.
 final class AppModel: ObservableObject {
     static var shared: AppModel!
 
     let project: ProjectStore
     let player: PlayerController
     let transcription: WhisperService
+    let vision: VisionDescriptionService
 
     @Published var showMarkerList = true
     @Published var showWhisperSetup = false
+    @Published var showVisionSetup = false
     @Published var alertMessage: String?
 
     /// Ob beim Beginn einer neuen Notiz zusätzlich zum Timecode auch ein
@@ -25,15 +30,24 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(includeScreenshots, forKey: "includeScreenshots") }
     }
 
+    /// Full-Auto-Modus: jeder gesetzte Marker bekommt zusätzlich automatisch
+    /// eine KI-Bildbeschreibung. Persistiert über Neustarts hinweg.
+    @Published var fullAutoMode: Bool {
+        didSet { UserDefaults.standard.set(fullAutoMode, forKey: "fullAutoMode") }
+    }
+
     private var keyMonitor: Any?
 
-    init(project: ProjectStore, player: PlayerController, transcription: WhisperService) {
+    init(project: ProjectStore, player: PlayerController,
+         transcription: WhisperService, vision: VisionDescriptionService) {
         self.project = project
         self.player = player
         self.transcription = transcription
+        self.vision = vision
         self.includeScreenshots = UserDefaults.standard.object(forKey: "includeScreenshots") == nil
             ? true
             : UserDefaults.standard.bool(forKey: "includeScreenshots")
+        self.fullAutoMode = UserDefaults.standard.bool(forKey: "fullAutoMode")
         AppModel.shared = self
     }
 
@@ -132,6 +146,74 @@ final class AppModel: ObservableObject {
         guard player.videoURL != nil else { return }
         project.addMarker(at: player.currentTime, colorName: colorName)
         showMarkerList = true
+        if fullAutoMode {
+            describeCurrentFrame()
+        }
+    }
+
+    // MARK: Bildbeschreibung (Add-on über Ollama)
+
+    /// Beschreibt das aktuelle Video-Standbild per lokalem Vision-Modell und
+    /// fügt einen Notiz-Block mit Screenshot, Timecode und KI-Text an. Ohne
+    /// installiertes/laufendes Ollama erscheint nur ein Einrichtungshinweis —
+    /// der Rest der App funktioniert unverändert.
+    func describeCurrentFrame() {
+        guard player.videoURL != nil else { return }
+        guard vision.setupProblem == nil else {
+            showVisionSetup = true
+            return
+        }
+        guard let image = player.thumbnail(at: player.currentTime) else { return }
+        let time = player.currentTime
+
+        vision.checkStatus { [weak self] modelReady, serverRunning in
+            guard let self else { return }
+            guard serverRunning else {
+                self.alertMessage = "Ollama läuft nicht. Im Terminal starten: ollama serve\n" +
+                    "(oder dauerhaft: brew services start ollama)"
+                return
+            }
+            guard modelReady else {
+                self.showVisionSetup = true
+                return
+            }
+            self.vision.describe(image: image) { result in
+                if case .success(let text) = result {
+                    self.insertDescription(text, time: time, image: image)
+                }
+                // .failure: vision.lastError ist gesetzt und wird als Alert gezeigt
+            }
+        }
+    }
+
+    private func insertDescription(_ text: String, time: Double, image: NSImage) {
+        let block = NSMutableAttributedString()
+        let bodyAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFontManager.shared.convert(NSFont.systemFont(ofSize: 13), toHaveTrait: .italicFontMask),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .sightingVisionDescription: true,
+        ]
+
+        let targetWidth: CGFloat = 160
+        let scale = targetWidth / max(image.size.width, 1)
+        let targetSize = NSSize(width: targetWidth, height: (image.size.height * scale).rounded())
+        let small = NSImage(size: targetSize)
+        small.lockFocus()
+        image.draw(in: NSRect(origin: .zero, size: targetSize))
+        small.unlockFocus()
+        if let smallTiff = small.tiffRepresentation, let smallBitmap = NSBitmapImageRep(data: smallTiff),
+           let smallPNG = smallBitmap.representation(using: .png, properties: [:]) {
+            let wrapper = FileWrapper(regularFileWithContents: smallPNG)
+            wrapper.preferredFilename = "frame-\(Int(time * 1000)).png"
+            let attachment = NSTextAttachment(fileWrapper: wrapper)
+            attachment.bounds = NSRect(origin: .zero, size: targetSize)
+            block.append(NSAttributedString(string: "\n"))
+            block.append(NSAttributedString(attachment: attachment))
+            block.append(NSAttributedString(string: "  "))
+        }
+        block.append(timecodeLinkString(time: time, visionDescription: true))
+        block.append(NSAttributedString(string: "  🖼 " + text + "\n", attributes: bodyAttributes))
+        NotesEditorBridge.shared.coordinator?.appendTranscript(block)
     }
 
     // MARK: Transkription
@@ -279,8 +361,10 @@ final class AppModel: ObservableObject {
     }
 }
 
-/// Klickbarer Timecode als Attributed String (auch für Transkripte).
-func timecodeLinkString(time: Double, transcript: Bool = false) -> NSAttributedString {
+/// Klickbarer Timecode als Attributed String (auch für Transkripte und
+/// KI-Bildbeschreibungen — für den CSV-Export entsprechend markiert).
+func timecodeLinkString(time: Double, transcript: Bool = false,
+                        visionDescription: Bool = false) -> NSAttributedString {
     var components = URLComponents()
     components.scheme = "sighting"
     components.host = "seek"
@@ -291,5 +375,6 @@ func timecodeLinkString(time: Double, transcript: Bool = false) -> NSAttributedS
     ]
     if let url = components.url { attributes[.link] = url }
     if transcript { attributes[.sightingTranscript] = true }
+    if visionDescription { attributes[.sightingVisionDescription] = true }
     return NSAttributedString(string: formatTimecode(time), attributes: attributes)
 }

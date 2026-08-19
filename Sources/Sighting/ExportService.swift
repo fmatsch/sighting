@@ -85,7 +85,8 @@ enum ExportService {
             rows.append(Row(time: marker.time, type: "Marker (\(name))", text: marker.label))
         }
         rows.append(contentsOf: noteBlocks(from: project.textStorage).map {
-            Row(time: $0.time, type: $0.isTranscript ? "Transkript" : "Notiz", text: $0.text)
+            let type = $0.isVisionDescription ? "Bildbeschreibung (KI)" : ($0.isTranscript ? "Transkript" : "Notiz")
+            return Row(time: $0.time, type: type, text: $0.text)
         })
         rows.sort { $0.time < $1.time }
 
@@ -103,6 +104,7 @@ enum ExportService {
         let time: Double
         let text: String
         let isTranscript: Bool
+        let isVisionDescription: Bool
     }
 
     /// Zerlegt die Notizen in Blöcke: jeder Timecode-Link beginnt einen Block,
@@ -114,17 +116,20 @@ enum ExportService {
         var currentTime: Double?
         var currentText: [String] = []
         var currentIsTranscript = false
+        var currentIsVisionDescription = false
 
         func flush() {
             if let time = currentTime {
                 let joined = currentText.joined(separator: " ")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 blocks.append(NoteBlock(time: time, text: joined,
-                                        isTranscript: currentIsTranscript))
+                                        isTranscript: currentIsTranscript,
+                                        isVisionDescription: currentIsVisionDescription))
             }
             currentTime = nil
             currentText = []
             currentIsTranscript = false
+            currentIsVisionDescription = false
         }
 
         var location = 0
@@ -154,9 +159,21 @@ enum ExportService {
                 let withoutTC = raw.replacingOccurrences(
                     of: #"^\d{2}:\d{2}:\d{2}\s*[–-]?\s*(\d{2}:\d{2}:\d{2})?\s*"#,
                     with: "", options: .regularExpression)
-                currentIsTranscript = storage.attribute(
-                    .sightingTranscript, at: paragraph.location, effectiveRange: nil) != nil
-                if !withoutTC.isEmpty { currentText.append(withoutTC) }
+                // Über den ganzen Absatz suchen, nicht nur an dessen Anfang —
+                // bei Bildbeschreibungen sitzt vor dem markierten Timecode
+                // noch das unmarkierte Screenshot-Attachment.
+                var isTranscript = false
+                storage.enumerateAttribute(.sightingTranscript, in: paragraph) { value, _, stop in
+                    if value != nil { isTranscript = true; stop.pointee = true }
+                }
+                var isVisionDescription = false
+                storage.enumerateAttribute(.sightingVisionDescription, in: paragraph) { value, _, stop in
+                    if value != nil { isVisionDescription = true; stop.pointee = true }
+                }
+                currentIsTranscript = isTranscript
+                currentIsVisionDescription = isVisionDescription
+                let withoutEmoji = withoutTC.replacingOccurrences(of: "🖼 ", with: "")
+                if !withoutEmoji.isEmpty { currentText.append(withoutEmoji) }
             } else if !raw.isEmpty, raw.range(
                 of: #"^Transkript \d{2}:\d{2}:\d{2}[–-]\d{2}:\d{2}:\d{2}$"#,
                 options: .regularExpression) == nil {

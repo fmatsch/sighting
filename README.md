@@ -50,12 +50,21 @@ visuelles Protokoll der Sichtung.
 - **MXF/XDCAM-Unterstützung** — Broadcast-Footage (z. B. XDCAM-MXF), das AVFoundation
   nicht direkt öffnen kann, wird beim Import automatisch und verlustfrei nach .mov
   umgepackt (kein Re-Encode, nur Container-Tausch via ffmpeg)
+- **KI-Bildbeschreibung (optionales Add-on)** — beschreibt Video-Standbilder lokal per
+  [Ollama](https://ollama.com) + `moondream`; ganz ohne installiertes Ollama bleibt der
+  Rest der App unverändert nutzbar. Manuell per „Bild beschreiben“ oder als
+  **Vollautomatik**, die bei jedem gesetzten Marker automatisch eine Beschreibung anlegt.
+  Die Beschreibungen kommen auf Englisch — `moondream` ist ein sehr kleines, englisch-
+  zentriertes Modell und liefert bei deutschen Prompts unzuverlässige Ergebnisse
 
 ## Screenshots
 
 <p align="center">
   <img src="docs/assets/screenshot-notes.png" width="420" alt="Notizen mit automatischem Timecode und Screenshot">
   <img src="docs/assets/screenshot-transcript.png" width="420" alt="Whisper-Transkription im Notizfeld">
+</p>
+<p align="center">
+  <img src="docs/assets/screenshot-vision.png" width="420" alt="Automatische KI-Bildbeschreibung im Vollautomatik-Modus">
 </p>
 
 ## Voraussetzungen
@@ -64,9 +73,15 @@ visuelles Protokoll der Sichtung.
 - [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/) (`xcode-select --install`)
 - [Homebrew](https://brew.sh)
 - Für Transkription und MXF-Import: [`whisper-cpp`](https://github.com/ggml-org/whisper.cpp) und `ffmpeg`
+- Optional, nur für die KI-Bildbeschreibung: [`ollama`](https://ollama.com)
 
 ```bash
 brew install whisper-cpp ffmpeg
+
+# optional, nur für die KI-Bildbeschreibung
+brew install ollama
+brew services start ollama
+ollama pull moondream
 ```
 
 Das Whisper-Modell (`large-v3-turbo`, ca. 1,6 GB) lädt die App beim ersten

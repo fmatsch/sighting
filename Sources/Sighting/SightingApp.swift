@@ -8,17 +8,20 @@ struct SightingApp: App {
     @StateObject private var project: ProjectStore
     @StateObject private var player: PlayerController
     @StateObject private var transcription: WhisperService
+    @StateObject private var vision: VisionDescriptionService
     @StateObject private var appModel: AppModel
 
     init() {
         let project = ProjectStore()
         let player = PlayerController()
         let transcription = WhisperService()
+        let vision = VisionDescriptionService()
         _project = StateObject(wrappedValue: project)
         _player = StateObject(wrappedValue: player)
         _transcription = StateObject(wrappedValue: transcription)
+        _vision = StateObject(wrappedValue: vision)
         _appModel = StateObject(wrappedValue: AppModel(
-            project: project, player: player, transcription: transcription))
+            project: project, player: player, transcription: transcription, vision: vision))
     }
 
     var body: some Scene {
@@ -27,6 +30,7 @@ struct SightingApp: App {
                 .environmentObject(project)
                 .environmentObject(player)
                 .environmentObject(transcription)
+                .environmentObject(vision)
                 .environmentObject(appModel)
                 .onAppear {
                     appModel.installKeyMonitor()
@@ -70,6 +74,11 @@ struct SightingApp: App {
                 Divider()
                 Toggle("Screenshot bei neuer Notiz einfügen", isOn: $appModel.includeScreenshots)
                     .keyboardShortcut("t", modifiers: [.command, .option])
+                Divider()
+                Button("Bild beschreiben (KI)") { appModel.describeCurrentFrame() }
+                    .keyboardShortcut("b", modifiers: [.command, .shift])
+                Toggle("Vollautomatik (KI-Bildbeschreibung bei jedem Marker)",
+                      isOn: $appModel.fullAutoMode)
             }
         }
     }
@@ -90,6 +99,7 @@ struct ContentView: View {
     @EnvironmentObject var project: ProjectStore
     @EnvironmentObject var player: PlayerController
     @EnvironmentObject var transcription: WhisperService
+    @EnvironmentObject var vision: VisionDescriptionService
     @EnvironmentObject var app: AppModel
 
     var body: some View {
@@ -111,6 +121,11 @@ struct ContentView: View {
         .sheet(isPresented: $app.showWhisperSetup) {
             WhisperSetupView()
                 .environmentObject(transcription)
+                .environmentObject(app)
+        }
+        .sheet(isPresented: $app.showVisionSetup) {
+            VisionSetupView()
+                .environmentObject(vision)
                 .environmentObject(app)
         }
         .alert("Hinweis", isPresented: Binding(
@@ -136,6 +151,14 @@ struct ContentView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(player.importError ?? "")
+        }
+        .alert("Bildbeschreibung fehlgeschlagen", isPresented: Binding(
+            get: { vision.lastError != nil && !vision.isPullingModel },
+            set: { if !$0 { vision.lastError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(vision.lastError ?? "")
         }
     }
 }
@@ -191,5 +214,83 @@ struct WhisperSetupView: View {
         }
         .padding(20)
         .frame(width: 420)
+    }
+}
+
+/// Einmaliges Setup für die optionale Bildbeschreibung (Ollama + moondream).
+/// Reines Add-on: solange Ollama nicht installiert ist, bleibt alles andere
+/// in der App unverändert nutzbar.
+struct VisionSetupView: View {
+    @EnvironmentObject var vision: VisionDescriptionService
+    @EnvironmentObject var app: AppModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var modelReady: Bool?
+    @State private var serverRunning = false
+    @State private var isChecking = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Bildbeschreibung einrichten", systemImage: "text.below.photo")
+                .font(.title3.weight(.semibold))
+
+            Text("Optionales Add-on: erzeugt lokal (ohne Cloud) kurze Bildbeschreibungen " +
+                 "über Ollama mit dem kompakten Vision-Modell „\(VisionDescriptionService.model)“.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            if let problem = vision.setupProblem {
+                Text(problem)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if isChecking {
+                ProgressView("Prüfe Ollama …").controlSize(.small)
+            } else if !serverRunning {
+                Text("Ollama ist installiert, läuft aber nicht. Im Terminal starten:\n" +
+                     "ollama serve\n(oder dauerhaft: brew services start ollama)")
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Erneut prüfen") { check() }
+            } else if modelReady == false {
+                Text("Ollama läuft — das Modell „\(VisionDescriptionService.model)“ fehlt noch.")
+                if vision.isPullingModel {
+                    ProgressView("Lädt … (~1,7 GB, kann einige Minuten dauern)")
+                        .controlSize(.small)
+                } else {
+                    Button("Modell jetzt laden (~1,7 GB)") {
+                        vision.pullModel { success in if success { check() } }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                if let error = vision.lastError {
+                    Text(error).foregroundStyle(.red).font(.caption)
+                }
+            } else {
+                Label("Alles bereit – Bildbeschreibung kann starten.", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            }
+
+            HStack {
+                Spacer()
+                Button("Schließen") { dismiss() }
+                if vision.setupProblem == nil, modelReady == true {
+                    Button("Bild beschreiben") {
+                        dismiss()
+                        app.describeCurrentFrame()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .padding(20)
+        .frame(width: 440)
+        .onAppear { check() }
+    }
+
+    private func check() {
+        isChecking = true
+        vision.checkStatus { ready, running in
+            isChecking = false
+            serverRunning = running
+            modelReady = ready
+        }
     }
 }

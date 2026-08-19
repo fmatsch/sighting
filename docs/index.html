@@ -269,6 +269,11 @@
         <h3>MXF/XDCAM-Broadcast-Footage</h3>
         <p>Container wie XDCAM-MXF, die macOS nicht direkt öffnen kann, werden beim Import automatisch und verlustfrei umgepackt.</p>
       </div>
+      <div class="feature-card">
+        <div class="icon">✨</div>
+        <h3>KI-Bildbeschreibung (Add-on)</h3>
+        <p>Optional per Ollama + moondream, komplett offline. Manuell oder als Vollautomatik bei jedem Marker — ohne Ollama bleibt der Rest der App unverändert.</p>
+      </div>
     </div>
   </section>
 
@@ -284,6 +289,10 @@
         <img src="assets/screenshot-transcript.png" alt="Automatisch eingefügtes Whisper-Transkript mit klickbaren Timecodes pro Segment">
         <figcaption>Whisper-Transkript mit klickbaren Timecodes pro Segment.</figcaption>
       </figure>
+      <figure>
+        <img src="assets/screenshot-vision.png" alt="Automatisch eingefügte KI-Bildbeschreibung im Vollautomatik-Modus">
+        <figcaption>Vollautomatik: KI-Bildbeschreibung bei jedem Marker (Add-on).</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -295,10 +304,16 @@
       <li>macOS 14 oder neuer (Apple Silicon empfohlen)</li>
       <li>Xcode Command Line Tools (<code>xcode-select --install</code>)</li>
       <li><a href="https://brew.sh">Homebrew</a>, sowie <code>whisper-cpp</code> und <code>ffmpeg</code> für Transkription und MXF-Import</li>
+      <li>Optional, nur für die KI-Bildbeschreibung: <a href="https://ollama.com">Ollama</a></li>
     </ul>
 
     <div class="code-block"><span class="comment"># Abhängigkeiten für Transkription &amp; MXF-Import</span>
 brew install whisper-cpp ffmpeg
+
+<span class="comment"># optional, nur für die KI-Bildbeschreibung</span>
+brew install ollama
+brew services start ollama
+ollama pull moondream
 
 <span class="comment"># App bauen und starten</span>
 git clone https://github.com/fmatsch/sighting.git

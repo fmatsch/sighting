@@ -205,6 +205,21 @@ struct ControlBar: View {
             .frame(width: 100)
             .help("Marker an aktueller Position setzen (M)")
 
+            // Vollautomatik: KI-Bildbeschreibung bei jedem Marker (Add-on, benötigt Ollama)
+            Button {
+                app.fullAutoMode.toggle()
+            } label: {
+                if app.vision.isDescribing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(app.fullAutoMode ? Color.accentColor : Color.secondary)
+                }
+            }
+            .help(app.fullAutoMode
+                  ? "Vollautomatik: jeder Marker bekommt eine KI-Bildbeschreibung (aktiv)"
+                  : "Vollautomatik: jeder Marker bekommt eine KI-Bildbeschreibung (aus)")
+
             Button {
                 withAnimation { app.showMarkerList.toggle() }
             } label: {
