@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: file:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:; media-src 'self' file: data:;">
+<title>Sighting</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="player-pane">
+      <div id="video-wrap">
+        <video id="video" preload="metadata"></video>
+        <div id="video-placeholder">
+          <div class="placeholder-icon">🎬</div>
+          <div>Video hierher ziehen oder über „Datei → Video öffnen …“ laden</div>
+        </div>
+        <div id="import-overlay" class="hidden">
+          <div class="spinner"></div>
+          <div>Video wird importiert …</div>
+        </div>
+      </div>
+
+      <div id="timeline"><div id="timeline-fill"></div><div id="timeline-playhead"></div><div id="timeline-inout"></div><div id="timeline-markers"></div></div>
+
+      <div id="control-bar">
+        <button id="btn-back10" title="10 Sekunden zurück (J)">⏪</button>
+        <button id="btn-play" title="Wiedergabe/Pause (Leertaste oder K)">▶︎</button>
+        <button id="btn-fwd10" title="10 Sekunden vor">⏩</button>
+        <button id="btn-frame-back" title="1 Bild zurück (←)">⏮</button>
+        <button id="btn-frame-fwd" title="1 Bild vor (→)">⏭</button>
+        <select id="rate-select" title="Wiedergabegeschwindigkeit (L zum Durchschalten)">
+          <option value="0.5">0.5×</option>
+          <option value="0.75">0.75×</option>
+          <option value="1" selected>1×</option>
+          <option value="1.25">1.25×</option>
+          <option value="1.5">1.5×</option>
+          <option value="2">2×</option>
+        </select>
+        <span id="time-current" class="mono">00:00:00</span>
+        <span id="time-duration" class="mono dim">/ 00:00:00</span>
+        <span class="spacer"></span>
+        <button id="btn-in" title="In-Punkt setzen (I)">In</button>
+        <button id="btn-out" title="Out-Punkt setzen (O)">Out</button>
+        <button id="btn-clear-inout" class="hidden" title="In/Out löschen">✕</button>
+        <button id="btn-screenshot-toggle" title="Screenshot bei neuer Notiz umschalten">📷</button>
+        <button id="btn-transcribe" title="In/Out-Bereich (oder ganzes Video) mit Whisper transkribieren">📝 Transkribieren</button>
+        <button id="btn-marker" title="Marker an aktueller Position setzen (M)">🔖 Marker</button>
+        <button id="btn-fullauto" title="Vollautomatik: KI-Bildbeschreibung bei jedem Marker">✨</button>
+        <button id="btn-toggle-sidebar" title="Markerliste ein-/ausblenden">▥</button>
+      </div>
+    </div>
+
+    <div id="lower-pane">
+      <div id="notes-editor"></div>
+      <div id="marker-sidebar">
+        <h3>Marker</h3>
+        <div id="marker-empty">Noch keine Marker.<br>Mit „M“ oder dem Marker-Knopf setzt du einen an der aktuellen Stelle.</div>
+        <ul id="marker-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-overlay" class="hidden">
+    <div id="modal-box"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -5,13 +5,13 @@
 <h1 align="center">Sighting</h1>
 
 <p align="center">
-  Eine native macOS-App zum Sichten von Videomaterial — mit automatischen Timecode-Notizen,<br>
-  lokaler Whisper-Transkription und Export nach PDF, DOCX und CSV.
+  Videos sichten, mit automatischen Timecode-Notizen, lokaler Whisper-Transkription,<br>
+  deutscher KI-Bildbeschreibung und Export nach PDF, DOCX und CSV. Für macOS (nativ) und Windows.
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="macOS & Windows">
   <img src="https://img.shields.io/badge/swift-6.3-orange.svg" alt="Swift 6.3">
 </p>
 
@@ -117,6 +117,18 @@ Das Skript baut das Swift-Package (`swift build -c release`) und packt daraus
 | `Sources/Sighting/WhisperService.swift` | Lokale Transkription via whisper.cpp |
 | `Sources/Sighting/ExportService.swift` / `DocxWriter.swift` | PDF-, DOCX-, CSV-Export |
 | `Sources/Sighting/ProjectStore.swift` | Projekt speichern/laden (`.sighting`-Paket) |
+
+## Windows
+
+Im Ordner [`windows/`](windows/) liegt ein **Electron-Port mit vollem Funktionsumfang**
+der Mac-App — gleiche Features (Notizen, Marker, Whisper, KI-Bildbeschreibung mit
+deutscher Übersetzung, PDF/DOCX/CSV-Export), eigenständiger Code-Stack (TypeScript +
+TipTap statt Swift/AppKit, da Apples Frameworks unter Windows nicht existieren). Fertige
+`.exe` unter [Releases](https://github.com/fmatsch/sighting/releases/latest), Details
+und Build-Anleitung in der [windows/README.md](windows/README.md).
+
+> **Hinweis:** `.sighting`-Projekte sind zwischen Mac- und Windows-Version nicht
+> austauschbar (unterschiedliches internes Format).
 
 ## Lizenz
 

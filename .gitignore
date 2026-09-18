@@ -3,3 +3,9 @@ Sighting.app/
 .DS_Store
 *.xcuserstate
 .swiftpm/
+
+# Windows-Version (Electron)
+windows/node_modules/
+windows/dist/
+windows/release/
+windows/*.log

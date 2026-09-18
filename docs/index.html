@@ -208,19 +208,23 @@
   <h1>Sighting</h1>
   <p class="tagline">
     Videos sichten, Notizen mit Timecode &amp; Screenshot automatisch mitschreiben,
-    Interviews lokal transkribieren — nativ auf dem Mac.
+    Interviews lokal transkribieren — für macOS (nativ) und Windows.
   </p>
   <div class="badges">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License">
-    <img src="https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg" alt="macOS 14+">
+    <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="macOS & Windows">
     <img src="https://img.shields.io/badge/swift-6.3-orange.svg" alt="Swift 6.3">
   </div>
   <div class="cta-row">
-    <a class="btn btn-primary" href="https://github.com/fmatsch/sighting/releases/latest/download/Sighting.zip">⇩ Download für macOS</a>
+    <a class="btn btn-primary" href="https://github.com/fmatsch/sighting/releases/latest/download/Sighting-macOS.zip">⇩ Download für macOS</a>
+    <a class="btn btn-primary" href="https://github.com/fmatsch/sighting/releases/latest/download/Sighting-windows.zip">⇩ Download für Windows</a>
+  </div>
+  <div class="cta-row" style="margin-top: 10px;">
     <a class="btn btn-secondary" href="https://github.com/fmatsch/sighting">Auf GitHub ansehen</a>
   </div>
   <p class="download-note">
-    Sighting.zip · macOS 14+ · nicht notariert — beim ersten Start per Rechtsklick → „Öffnen" bestätigen.
+    macOS 14+ bzw. Windows 10/11 · beide nicht signiert — beim ersten Start einmalig
+    Gatekeeper- bzw. SmartScreen-Warnung bestätigen.
     <a href="#start">Lieber selbst aus dem Quellcode bauen?</a>
   </p>
 </header>
@@ -298,8 +302,9 @@
 
   <section id="start">
     <h2>Installation</h2>
-    <p class="section-lead">Kein Xcode-Projekt nötig — Swift Package Manager reicht.</p>
+    <p class="section-lead">Fertige Downloads unter <a href="https://github.com/fmatsch/sighting/releases/latest">Releases</a> — oder selbst aus dem Quellcode bauen.</p>
 
+    <h3 style="margin-top:28px;font-size:1rem;">macOS</h3>
     <ul class="req-list">
       <li>macOS 14 oder neuer (Apple Silicon empfohlen)</li>
       <li>Xcode Command Line Tools (<code>xcode-select --install</code>)</li>
@@ -321,6 +326,14 @@ git clone https://github.com/fmatsch/sighting.git
 cd sighting
 ./build-app.sh
 open Sighting.app</div>
+
+    <h3 style="margin-top:28px;font-size:1rem;">Windows</h3>
+    <p class="section-lead">Electron-Port mit vollem Funktionsumfang — Details in der <a href="https://github.com/fmatsch/sighting/blob/main/windows/README.md">windows/README.md</a>.</p>
+    <div class="code-block"><span class="comment"># App bauen und starten</span>
+git clone https://github.com/fmatsch/sighting.git
+cd sighting/windows
+npm install
+npm run build:win</div>
   </section>
 
 </div>

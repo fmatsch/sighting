@@ -1,0 +1,46 @@
+{
+  "name": "sighting",
+  "productName": "Sighting",
+  "version": "1.0.0",
+  "description": "Videos sichten, Notizen mit Timecode & Screenshot automatisch mitschreiben, Interviews lokal transkribieren.",
+  "main": "dist/main/main.js",
+  "author": "Florian Matscheko",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build:main": "tsc -p tsconfig.json",
+    "build:renderer": "esbuild src/renderer/app.ts --bundle --outfile=dist/renderer/app.js --platform=browser --target=chrome120 && cp src/renderer/index.html src/renderer/style.css dist/renderer/",
+    "build": "npm run build:main && npm run build:renderer",
+    "dev": "npm run build && electron .",
+    "build:win": "npm run build && electron-builder --win zip --x64"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "docx": "^9.0.0",
+    "@tiptap/core": "^2.6.0",
+    "@tiptap/starter-kit": "^2.6.0",
+    "@tiptap/extension-image": "^2.6.0",
+    "@tiptap/pm": "^2.6.0"
+  },
+  "build": {
+    "appId": "com.fmatsch.sighting",
+    "productName": "Sighting",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [{ "target": "zip", "arch": ["x64"] }],
+      "icon": "build/icon.ico"
+    }
+  }
+}
