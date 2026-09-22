@@ -93,6 +93,13 @@ struct ControlBar: View {
     @EnvironmentObject var player: PlayerController
     @EnvironmentObject var project: ProjectStore
     @EnvironmentObject var app: AppModel
+    // Direkt beobachten, nicht nur über app.transcription/app.vision lesen:
+    // SwiftUI reagiert auf @Published-Änderungen eines verschachtelten
+    // ObservableObject nur, wenn die View selbst @EnvironmentObject darauf
+    // hält — sonst bleiben Spinner/Fortschrittstext (isRunning/isDescribing)
+    // unsichtbar, obwohl die Transkription/Beschreibung im Hintergrund läuft.
+    @EnvironmentObject var transcription: WhisperService
+    @EnvironmentObject var vision: VisionDescriptionService
 
     var body: some View {
         HStack(spacing: 12) {
@@ -176,16 +183,16 @@ struct ControlBar: View {
             Button {
                 app.startTranscription()
             } label: {
-                if app.transcription.isRunning {
+                if transcription.isRunning {
                     HStack(spacing: 5) {
                         ProgressView().controlSize(.small)
-                        Text(app.transcription.progressText)
+                        Text(transcription.progressText)
                     }
                 } else {
                     Label("Transkribieren", systemImage: "text.quote")
                 }
             }
-            .disabled(player.videoURL == nil || app.transcription.isRunning)
+            .disabled(player.videoURL == nil || transcription.isRunning)
             .help("In/Out-Bereich (oder ganzes Video) mit Whisper transkribieren")
 
             // Marker
@@ -209,7 +216,7 @@ struct ControlBar: View {
             Button {
                 app.fullAutoMode.toggle()
             } label: {
-                if app.vision.isDescribing {
+                if vision.isDescribing {
                     ProgressView().controlSize(.small)
                 } else {
                     Image(systemName: "sparkles")
