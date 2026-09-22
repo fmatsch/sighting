@@ -287,12 +287,16 @@ final class AppModel: ObservableObject {
         panel.nameFieldStringValue = "\(base)-Sichtung.\(kind.fileExtension)"
         if panel.runModal() == .OK, let url = panel.url {
             do {
+                var revealURLs = [url]
                 switch kind {
                 case .pdf: try ExportService.exportPDF(to: url, project: project, player: player)
                 case .docx: try ExportService.exportDOCX(to: url, project: project, player: player)
                 case .csv: try ExportService.exportCSV(to: url, project: project, player: player)
+                case .premiere:
+                    try PremiereExportService.export(to: url, project: project, player: player)
+                    revealURLs.append(url.deletingPathExtension().appendingPathExtension("srt"))
                 }
-                NSWorkspace.shared.activateFileViewerSelecting([url])
+                NSWorkspace.shared.activateFileViewerSelecting(revealURLs)
             } catch {
                 alertMessage = "Export fehlgeschlagen: \(error.localizedDescription)"
             }
@@ -300,12 +304,13 @@ final class AppModel: ObservableObject {
     }
 
     enum ExportKind {
-        case pdf, docx, csv
+        case pdf, docx, csv, premiere
         var fileExtension: String {
             switch self {
             case .pdf: "pdf"
             case .docx: "docx"
             case .csv: "csv"
+            case .premiere: "xml"
             }
         }
     }

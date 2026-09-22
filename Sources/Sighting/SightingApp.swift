@@ -58,6 +58,7 @@ struct SightingApp: App {
                 Button("Als DOCX exportieren …") { appModel.export(kind: .docx) }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
                 Button("Timecodes als CSV exportieren …") { appModel.export(kind: .csv) }
+                Button("Für Premiere Pro exportieren (XML + SRT) …") { appModel.export(kind: .premiere) }
             }
             CommandMenu("Sichten") {
                 Button("Wiedergabe/Pause") { player.togglePlay() }
