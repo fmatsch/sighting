@@ -106,6 +106,12 @@ Das Skript baut das Swift-Package (`swift build -c release`) und packt daraus
 > Für den eigenen Rechner ist das kein Problem; zum Weitergeben an andere müsste
 > die App notarisiert werden.
 
+Mit `BUNDLE_WHISPER_MODEL=1 ./build-app.sh` wird das Whisper-Modell (~1,6 GB, muss
+vorher einmal unter `~/Library/Application Support/Sighting/models/` liegen, z. B.
+durch einen vorherigen Transkriptionsversuch) direkt ins App-Bundle gepackt — dann
+ist auf dem Zielrechner kein separater Erstlauf-Download mehr nötig. So werden auch
+die auf GitHub veröffentlichten `Sighting-macOS.zip`-Releases gebaut.
+
 ## Projektstruktur
 
 | Pfad | Inhalt |

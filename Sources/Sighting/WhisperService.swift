@@ -12,10 +12,27 @@ final class WhisperService: ObservableObject {
     @Published var isDownloadingModel = false
     @Published var downloadProgress: Double = 0
 
+    static let modelFilename = "ggml-large-v3-turbo.bin"
     static let modelURL = URL(fileURLWithPath: NSHomeDirectory())
-        .appendingPathComponent("Library/Application Support/Sighting/models/ggml-large-v3-turbo.bin")
+        .appendingPathComponent("Library/Application Support/Sighting/models/\(modelFilename)")
     static let remoteModelURL = URL(string:
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin")!
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/\(modelFilename)")!
+
+    /// Manche Release-Builds legen das Modell direkt ins App-Bundle (siehe
+    /// build-app.sh), damit auf dem Zielrechner kein ~1,6-GB-Download beim
+    /// ersten Transkriptionsversuch nötig ist.
+    static var bundledModelURL: URL? {
+        Bundle.main.resourceURL?.appendingPathComponent("models/\(modelFilename)")
+    }
+
+    /// Bevorzugt das mitgelieferte Modell im App-Bundle, sonst das
+    /// selbst heruntergeladene in Application Support.
+    static var activeModelURL: URL? {
+        if let bundled = bundledModelURL, FileManager.default.fileExists(atPath: bundled.path) {
+            return bundled
+        }
+        return FileManager.default.fileExists(atPath: modelURL.path) ? modelURL : nil
+    }
 
     private var downloadObservation: NSKeyValueObservation?
 
@@ -30,7 +47,7 @@ final class WhisperService: ObservableObject {
 
     var whisperPath: String? { Self.findExecutable("whisper-cli") }
     var ffmpegPath: String? { Self.findExecutable("ffmpeg") }
-    var modelExists: Bool { FileManager.default.fileExists(atPath: Self.modelURL.path) }
+    var modelExists: Bool { Self.activeModelURL != nil }
 
     /// Was fehlt noch, bevor transkribiert werden kann?
     var setupProblem: String? {
@@ -100,7 +117,7 @@ final class WhisperService: ObservableObject {
     /// Video-absoluten Timecodes.
     func transcribe(videoURL: URL, start: Double, end: Double,
                     completion: @escaping (Result<[Segment], TranscribeError>) -> Void) {
-        guard let whisper = whisperPath, let ffmpeg = ffmpegPath, modelExists else {
+        guard let whisper = whisperPath, let ffmpeg = ffmpegPath, let model = Self.activeModelURL else {
             completion(.failure(TranscribeError(message: setupProblem ?? "Setup unvollständig")))
             return
         }
@@ -140,7 +157,7 @@ final class WhisperService: ObservableObject {
             DispatchQueue.main.async { self?.progressText = "Transkribiere … 0 %" }
             let outBase = tmpDir.appendingPathComponent("transcript").path
             let whisperResult = Self.run(whisper, [
-                "-m", Self.modelURL.path,
+                "-m", model.path,
                 "-f", wav.path,
                 "-l", "auto",
                 "-oj", "-of", outBase,

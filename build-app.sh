@@ -22,5 +22,20 @@ cp "$BIN" "$APP/Contents/MacOS/Sighting"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 [ -f Resources/AppIcon.icns ] && cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
+# Optional: Whisper-Modell (~1,6 GB) ins Bundle packen, damit Release-Downloads
+# ohne separaten Erstlauf-Download transkribieren können (siehe WhisperService.
+# bundledModelURL). Nur mit BUNDLE_WHISPER_MODEL=1, da das jeden normalen Build
+# sonst unnötig um ~1,6 GB aufblasen würde.
+if [ "$BUNDLE_WHISPER_MODEL" = "1" ]; then
+    MODEL_SRC="$HOME/Library/Application Support/Sighting/models/ggml-large-v3-turbo.bin"
+    if [ -f "$MODEL_SRC" ]; then
+        mkdir -p "$APP/Contents/Resources/models"
+        cp "$MODEL_SRC" "$APP/Contents/Resources/models/ggml-large-v3-turbo.bin"
+        echo "Whisper-Modell eingebettet ($(du -h "$MODEL_SRC" | cut -f1))"
+    else
+        echo "BUNDLE_WHISPER_MODEL=1, aber kein Modell unter $MODEL_SRC gefunden — übersprungen." >&2
+    fi
+fi
+
 codesign --force -s - "$APP" >/dev/null 2>&1 || true
 echo "Fertig: $APP"
