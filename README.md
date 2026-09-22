@@ -46,7 +46,9 @@ visuelles Protokoll der Sichtung.
 - **In/Out-Bereichswahl** als Basis für Segment-Transkription
 - **Lokale Transkription mit Whisper** (whisper.cpp, Modell `large-v3-turbo`) — läuft komplett offline
 - **Projekte speichern/laden** als `.sighting`-Paket, mit Autosave
-- **Export** als PDF, DOCX (inkl. Bilder & Timecodes) und CSV (Timecode-Liste)
+- **Export** als PDF, DOCX (inkl. Bilder & Timecodes), CSV (Timecode-Liste) und für
+  Premiere Pro (XML mit Video-Clip & Markern + begleitende SRT-Datei aus dem
+  Transkript — funktioniert genauso in DaVinci Resolve, Final Cut, Avid)
 - **MXF/XDCAM-Unterstützung** — Broadcast-Footage (z. B. XDCAM-MXF), das AVFoundation
   nicht direkt öffnen kann, wird beim Import automatisch und verlustfrei nach .mov
   umgepackt (kein Re-Encode, nur Container-Tausch via ffmpeg)
