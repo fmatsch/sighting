@@ -44,7 +44,9 @@ visuelles Protokoll der Sichtung.
 - **Profi-Steuerung** — 0,5×–2× Geschwindigkeit, Bild-für-Bild, Shortcuts (J/K/L, Leertaste, Pfeile)
 - **Marker & Favoriten** — farbige Marker in der Timeline mit Übersichtsliste
 - **In/Out-Bereichswahl** als Basis für Segment-Transkription
-- **Lokale Transkription mit Whisper** (whisper.cpp, Modell `large-v3-turbo`) — läuft komplett offline
+- **Lokale Transkription mit Whisper** (whisper.cpp) — läuft komplett offline; Sprache
+  (Deutsch, Englisch, … oder automatisch) und Modellgröße (Tiny bis Large v3) sind in den
+  Einstellungen (⌘,) wählbar, Standard ist `large-v3-turbo`
 - **Projekte speichern/laden** als `.sighting`-Paket, mit Autosave
 - **Export** als PDF, DOCX (inkl. Bilder & Timecodes), CSV (Timecode-Liste) und für
   Premiere Pro (XML mit Video-Clip & Markern + begleitende SRT-Datei aus dem
@@ -88,9 +90,14 @@ ollama pull moondream
 ollama pull qwen2.5:1.5b
 ```
 
-Das Whisper-Modell (`large-v3-turbo`, ca. 1,6 GB) lädt die App beim ersten
+Das Whisper-Modell (Standard `large-v3-turbo`, ca. 1,6 GB) lädt die App beim ersten
 Transkriptionsversuch selbst herunter und legt es unter
-`~/Library/Application Support/Sighting/models/` ab.
+`~/Library/Application Support/Sighting/models/` ab. In den Einstellungen (⌘, bzw.
+„Sichten → Transkriptions-Einstellungen“) lassen sich Sprache und Modell wechseln
+(Tiny 78 MB, Base 148 MB, Small 488 MB, Medium 1,5 GB, Large v3 Turbo 1,6 GB,
+Large v3 3,1 GB); weitere Modelle werden dort bei Bedarf geladen. Alle Modelle
+sind mehrsprachig — für Deutsch empfehlen sich Turbo oder Large, die kleinen
+Modelle erkennen es deutlich ungenauer.
 
 ## Build & Start
 

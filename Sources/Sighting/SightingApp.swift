@@ -72,6 +72,9 @@ struct SightingApp: App {
                 Divider()
                 Button("Segment transkribieren") { appModel.startTranscription() }
                     .keyboardShortcut("t", modifiers: [.command, .shift])
+                SettingsLink {
+                    Text("Transkriptions-Einstellungen (Sprache, Modell) …")
+                }
                 Divider()
                 Toggle("Screenshot bei neuer Notiz einfügen", isOn: $appModel.includeScreenshots)
                     .keyboardShortcut("t", modifiers: [.command, .option])
@@ -81,6 +84,11 @@ struct SightingApp: App {
                 Toggle("Vollautomatik (KI-Bildbeschreibung bei jedem Marker)",
                       isOn: $appModel.fullAutoMode)
             }
+        }
+
+        Settings {
+            TranscriptionSettingsView()
+                .environmentObject(transcription)
         }
     }
 }
@@ -169,6 +177,7 @@ struct WhisperSetupView: View {
     @EnvironmentObject var transcription: WhisperService
     @EnvironmentObject var app: AppModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -187,10 +196,15 @@ struct WhisperSetupView: View {
                             Text("Lade Modell … \(Int(transcription.downloadProgress * 100)) %")
                         }
                     } else {
-                        Button("Modell jetzt laden (~1,6 GB)") {
+                        Button("Modell „\(transcription.selectedModel.title)“ laden " +
+                               "(\(transcription.selectedModel.sizeText))") {
                             transcription.downloadModel()
                         }
                         .buttonStyle(.borderedProminent)
+                        Button("Anderes Modell oder Sprache wählen …") {
+                            openSettings()
+                        }
+                        .buttonStyle(.link)
                     }
                 }
                 if let error = transcription.lastError {

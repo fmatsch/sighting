@@ -1,6 +1,74 @@
 import AppKit
 import Combine
 
+/// Ein auswählbares whisper.cpp-Modell (ggml-Format). Nur mehrsprachige
+/// Varianten — die „.en"-Modelle verstehen kein Deutsch.
+struct WhisperModel: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let sizeText: String
+    let hint: String
+
+    var filename: String { "ggml-\(id).bin" }
+    var remoteURL: URL {
+        URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/\(filename)")!
+    }
+    var localURL: URL {
+        URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent("Library/Application Support/Sighting/models/\(filename)")
+    }
+    /// Release-Builds können ein Modell direkt im App-Bundle mitliefern
+    /// (siehe build-app.sh), dann ist kein Download nötig.
+    var bundledURL: URL? {
+        Bundle.main.resourceURL?.appendingPathComponent("models/\(filename)")
+    }
+    var isBundled: Bool {
+        guard let url = bundledURL else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+    /// Bevorzugt das mitgelieferte Modell, sonst das heruntergeladene.
+    var availableURL: URL? {
+        if isBundled { return bundledURL }
+        return FileManager.default.fileExists(atPath: localURL.path) ? localURL : nil
+    }
+
+    static let all: [WhisperModel] = [
+        WhisperModel(id: "tiny", title: "Tiny", sizeText: "78 MB",
+                     hint: "Sehr schnell, aber für Deutsch meist zu ungenau."),
+        WhisperModel(id: "base", title: "Base", sizeText: "148 MB",
+                     hint: "Schnell, einfache Genauigkeit — nur für sehr klare Sprache."),
+        WhisperModel(id: "small", title: "Small", sizeText: "488 MB",
+                     hint: "Brauchbarer Kompromiss für klare Aufnahmen."),
+        WhisperModel(id: "medium", title: "Medium", sizeText: "1,5 GB",
+                     hint: "Gute Genauigkeit, deutlich langsamer als Turbo."),
+        WhisperModel(id: "large-v3-turbo", title: "Large v3 Turbo", sizeText: "1,6 GB",
+                     hint: "Empfohlen: nahezu Large-Qualität, aber deutlich schneller."),
+        WhisperModel(id: "large-v3", title: "Large v3", sizeText: "3,1 GB",
+                     hint: "Höchste Genauigkeit, am langsamsten und speicherhungrig."),
+    ]
+    static let `default` = all.first { $0.id == "large-v3-turbo" }!
+}
+
+/// Sprache für die Erkennung; „auto" lässt Whisper pro Aufnahme entscheiden.
+struct WhisperLanguage: Identifiable, Hashable {
+    let code: String
+    let title: String
+    var id: String { code }
+
+    static let all: [WhisperLanguage] = [
+        ("auto", "Automatisch erkennen"), ("de", "Deutsch"), ("en", "Englisch"),
+        ("fr", "Französisch"), ("es", "Spanisch"), ("it", "Italienisch"),
+        ("pt", "Portugiesisch"), ("nl", "Niederländisch"), ("pl", "Polnisch"),
+        ("cs", "Tschechisch"), ("sk", "Slowakisch"), ("hu", "Ungarisch"),
+        ("sl", "Slowenisch"), ("hr", "Kroatisch"), ("sr", "Serbisch"),
+        ("ro", "Rumänisch"), ("tr", "Türkisch"), ("ru", "Russisch"),
+        ("uk", "Ukrainisch"), ("ar", "Arabisch"), ("he", "Hebräisch"),
+        ("hi", "Hindi"), ("zh", "Chinesisch"), ("ja", "Japanisch"),
+        ("ko", "Koreanisch"), ("sv", "Schwedisch"), ("da", "Dänisch"),
+        ("no", "Norwegisch"), ("fi", "Finnisch"), ("el", "Griechisch"),
+    ].map { WhisperLanguage(code: $0.0, title: $0.1) }
+}
+
 /// Transkribiert Videosegmente lokal mit whisper.cpp (whisper-cli aus Homebrew).
 /// Ablauf: ffmpeg extrahiert den In/Out-Bereich als 16-kHz-WAV,
 /// whisper-cli transkribiert nach JSON, die Segmente landen mit
@@ -9,32 +77,33 @@ final class WhisperService: ObservableObject {
     @Published var isRunning = false
     @Published var progressText = "Transkribiere …"
     @Published var lastError: String?
-    @Published var isDownloadingModel = false
+    @Published var downloadingModelID: String?
     @Published var downloadProgress: Double = 0
 
-    static let modelFilename = "ggml-large-v3-turbo.bin"
-    static let modelURL = URL(fileURLWithPath: NSHomeDirectory())
-        .appendingPathComponent("Library/Application Support/Sighting/models/\(modelFilename)")
-    static let remoteModelURL = URL(string:
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/\(modelFilename)")!
-
-    /// Manche Release-Builds legen das Modell direkt ins App-Bundle (siehe
-    /// build-app.sh), damit auf dem Zielrechner kein ~1,6-GB-Download beim
-    /// ersten Transkriptionsversuch nötig ist.
-    static var bundledModelURL: URL? {
-        Bundle.main.resourceURL?.appendingPathComponent("models/\(modelFilename)")
+    /// Gewähltes Modell / gewählte Sprache; bleiben über Neustarts erhalten.
+    @Published var selectedModelID: String {
+        didSet { UserDefaults.standard.set(selectedModelID, forKey: "whisperModelID") }
+    }
+    @Published var language: String {
+        didSet { UserDefaults.standard.set(language, forKey: "whisperLanguage") }
     }
 
-    /// Bevorzugt das mitgelieferte Modell im App-Bundle, sonst das
-    /// selbst heruntergeladene in Application Support.
-    static var activeModelURL: URL? {
-        if let bundled = bundledModelURL, FileManager.default.fileExists(atPath: bundled.path) {
-            return bundled
-        }
-        return FileManager.default.fileExists(atPath: modelURL.path) ? modelURL : nil
+    init() {
+        let storedModel = UserDefaults.standard.string(forKey: "whisperModelID")
+        selectedModelID = WhisperModel.all.contains { $0.id == storedModel }
+            ? storedModel! : WhisperModel.default.id
+        let storedLanguage = UserDefaults.standard.string(forKey: "whisperLanguage")
+        language = WhisperLanguage.all.contains { $0.code == storedLanguage }
+            ? storedLanguage! : "auto"
     }
+
+    var selectedModel: WhisperModel {
+        WhisperModel.all.first { $0.id == selectedModelID } ?? .default
+    }
+    var isDownloadingModel: Bool { downloadingModelID != nil }
 
     private var downloadObservation: NSKeyValueObservation?
+    private var downloadTask: URLSessionDownloadTask?
 
     static func findExecutable(_ name: String) -> String? {
         let candidates = [
@@ -47,7 +116,7 @@ final class WhisperService: ObservableObject {
 
     var whisperPath: String? { Self.findExecutable("whisper-cli") }
     var ffmpegPath: String? { Self.findExecutable("ffmpeg") }
-    var modelExists: Bool { Self.activeModelURL != nil }
+    var modelExists: Bool { selectedModel.availableURL != nil }
 
     /// Was fehlt noch, bevor transkribiert werden kann?
     var setupProblem: String? {
@@ -58,47 +127,62 @@ final class WhisperService: ObservableObject {
             return "ffmpeg fehlt. Installation im Terminal: brew install ffmpeg"
         }
         if !modelExists {
-            return "Das Whisper-Modell (~1,6 GB) muss einmalig geladen werden."
+            return "Das Whisper-Modell „\(selectedModel.title)“ (\(selectedModel.sizeText)) " +
+                "muss einmalig geladen werden."
         }
         return nil
     }
 
     // MARK: Modell-Download
 
-    func downloadModel() {
-        guard !isDownloadingModel else { return }
-        isDownloadingModel = true
+    func downloadModel(_ model: WhisperModel? = nil) {
+        let model = model ?? selectedModel
+        guard downloadingModelID == nil else { return }
+        downloadingModelID = model.id
         downloadProgress = 0
         lastError = nil
 
-        let task = URLSession.shared.downloadTask(with: Self.remoteModelURL) { [weak self] tmp, _, error in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.isDownloadingModel = false
-                self.downloadObservation = nil
-                if let error {
-                    self.lastError = "Modell-Download fehlgeschlagen: \(error.localizedDescription)"
-                    return
+        let task = URLSession.shared.downloadTask(with: model.remoteURL) { [weak self] tmp, response, error in
+            // Die temporäre Datei wird nach Rückkehr dieses Handlers gelöscht —
+            // deshalb hier synchron verschieben, erst danach auf den Main-Thread.
+            var failure: String?
+            if let error {
+                if (error as NSError).code != NSURLErrorCancelled {
+                    failure = "Modell-Download fehlgeschlagen: \(error.localizedDescription)"
                 }
-                guard let tmp else { return }
+            } else if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                failure = "Modell-Download fehlgeschlagen (HTTP \(http.statusCode))."
+            } else if let tmp {
                 do {
                     try FileManager.default.createDirectory(
-                        at: Self.modelURL.deletingLastPathComponent(),
+                        at: model.localURL.deletingLastPathComponent(),
                         withIntermediateDirectories: true)
-                    if FileManager.default.fileExists(atPath: Self.modelURL.path) {
-                        try FileManager.default.removeItem(at: Self.modelURL)
+                    if FileManager.default.fileExists(atPath: model.localURL.path) {
+                        try FileManager.default.removeItem(at: model.localURL)
                     }
-                    try FileManager.default.moveItem(at: tmp, to: Self.modelURL)
-                    self.objectWillChange.send()
+                    try FileManager.default.moveItem(at: tmp, to: model.localURL)
                 } catch {
-                    self.lastError = "Modell konnte nicht gespeichert werden: \(error.localizedDescription)"
+                    failure = "Modell konnte nicht gespeichert werden: \(error.localizedDescription)"
                 }
             }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.downloadingModelID = nil
+                self.downloadObservation = nil
+                self.downloadTask = nil
+                if let failure { self.lastError = failure }
+                self.objectWillChange.send()
+            }
         }
+        downloadTask = task
         downloadObservation = task.progress.observe(\.fractionCompleted) { [weak self] progress, _ in
             DispatchQueue.main.async { self?.downloadProgress = progress.fractionCompleted }
         }
         task.resume()
+    }
+
+    func cancelDownload() {
+        downloadTask?.cancel()
     }
 
     // MARK: Transkription
@@ -117,10 +201,12 @@ final class WhisperService: ObservableObject {
     /// Video-absoluten Timecodes.
     func transcribe(videoURL: URL, start: Double, end: Double,
                     completion: @escaping (Result<[Segment], TranscribeError>) -> Void) {
-        guard let whisper = whisperPath, let ffmpeg = ffmpegPath, let model = Self.activeModelURL else {
+        guard let whisper = whisperPath, let ffmpeg = ffmpegPath,
+              let model = selectedModel.availableURL else {
             completion(.failure(TranscribeError(message: setupProblem ?? "Setup unvollständig")))
             return
         }
+        let languageCode = language
         isRunning = true
         progressText = "Extrahiere Audio …"
         lastError = nil
@@ -159,7 +245,7 @@ final class WhisperService: ObservableObject {
             let whisperResult = Self.run(whisper, [
                 "-m", model.path,
                 "-f", wav.path,
-                "-l", "auto",
+                "-l", languageCode,
                 "-oj", "-of", outBase,
                 "--print-progress",
             ]) { line in
