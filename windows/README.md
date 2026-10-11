@@ -28,7 +28,7 @@ softwareupdate --install-rosetta --agree-to-license
 
 - **whisper.cpp** für Transkription: [Windows-Release](https://github.com/ggml-org/whisper.cpp/releases)
   herunterladen, `whisper-cli.exe` in den PATH legen.
-- **ffmpeg** für Transkription & MXF-Import: `winget install Gyan.FFmpeg`
+- **ffmpeg** für Transkription, MXF-Import, Schnitterkennung und die Bildrate im Premiere-Export: `winget install Gyan.FFmpeg`
 - **Ollama** für KI-Bildbeschreibung: [ollama.com](https://ollama.com) (Windows-Installer),
   danach `ollama pull moondream` und `ollama pull qwen2.5:1.5b`
 
