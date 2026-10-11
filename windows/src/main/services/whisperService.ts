@@ -12,25 +12,76 @@ import { findExecutable } from './toolPaths';
  * installiertes whisper-cli/ffmpeg bleibt die App ansonsten unverändert.
  */
 
-const MODEL_NAME = 'ggml-large-v3-turbo.bin';
-const MODEL_URL =
-  'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin';
+export interface WhisperModelInfo {
+  id: string;
+  title: string;
+  sizeText: string;
+  hint: string;
+}
 
-function modelPath(): string {
-  return path.join(app.getPath('userData'), 'models', MODEL_NAME);
+/** Nur mehrsprachige Modelle — die „.en"-Varianten verstehen kein Deutsch. */
+export const MODELS: WhisperModelInfo[] = [
+  { id: 'tiny', title: 'Tiny', sizeText: '78 MB', hint: 'Sehr schnell, aber für Deutsch meist zu ungenau.' },
+  { id: 'base', title: 'Base', sizeText: '148 MB', hint: 'Schnell, einfache Genauigkeit — nur für sehr klare Sprache.' },
+  { id: 'small', title: 'Small', sizeText: '488 MB', hint: 'Brauchbarer Kompromiss für klare Aufnahmen.' },
+  { id: 'medium', title: 'Medium', sizeText: '1,5 GB', hint: 'Gute Genauigkeit, deutlich langsamer als Turbo.' },
+  { id: 'large-v3-turbo', title: 'Large v3 Turbo', sizeText: '1,6 GB', hint: 'Empfohlen: nahezu Large-Qualität, aber deutlich schneller.' },
+  { id: 'large-v3', title: 'Large v3', sizeText: '3,1 GB', hint: 'Höchste Genauigkeit, am langsamsten und speicherhungrig.' },
+];
+
+export const DEFAULT_MODEL_ID = 'large-v3-turbo';
+
+export const LANGUAGES: { code: string; title: string }[] = [
+  ['auto', 'Automatisch erkennen'], ['de', 'Deutsch'], ['en', 'Englisch'],
+  ['fr', 'Französisch'], ['es', 'Spanisch'], ['it', 'Italienisch'],
+  ['pt', 'Portugiesisch'], ['nl', 'Niederländisch'], ['pl', 'Polnisch'],
+  ['cs', 'Tschechisch'], ['sk', 'Slowakisch'], ['hu', 'Ungarisch'],
+  ['sl', 'Slowenisch'], ['hr', 'Kroatisch'], ['sr', 'Serbisch'],
+  ['ro', 'Rumänisch'], ['tr', 'Türkisch'], ['ru', 'Russisch'],
+  ['uk', 'Ukrainisch'], ['ar', 'Arabisch'], ['he', 'Hebräisch'],
+  ['hi', 'Hindi'], ['zh', 'Chinesisch'], ['ja', 'Japanisch'],
+  ['ko', 'Koreanisch'], ['sv', 'Schwedisch'], ['da', 'Dänisch'],
+  ['no', 'Norwegisch'], ['fi', 'Finnisch'], ['el', 'Griechisch'],
+].map(([code, title]) => ({ code, title }));
+
+export function resolveModelId(id: unknown): string {
+  return MODELS.some((m) => m.id === id) ? (id as string) : DEFAULT_MODEL_ID;
+}
+
+export function resolveLanguage(code: unknown): string {
+  return LANGUAGES.some((l) => l.code === code) ? (code as string) : 'auto';
+}
+
+function modelFile(modelId: string): string {
+  return `ggml-${modelId}.bin`;
+}
+
+function modelPath(modelId: string): string {
+  return path.join(app.getPath('userData'), 'models', modelFile(modelId));
+}
+
+function modelUrl(modelId: string): string {
+  return `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/${modelFile(modelId)}`;
+}
+
+export function listModels(): (WhisperModelInfo & { available: boolean })[] {
+  return MODELS.map((m) => ({ ...m, available: fs.existsSync(modelPath(m.id)) }));
 }
 
 export interface WhisperStatus {
   whisperInstalled: boolean;
   ffmpegInstalled: boolean;
   modelExists: boolean;
+  modelTitle: string;
+  modelSize: string;
   setupProblem: string | null;
 }
 
-export function getStatus(): WhisperStatus {
+export function getStatus(modelId: string): WhisperStatus {
+  const model = MODELS.find((m) => m.id === resolveModelId(modelId))!;
   const whisperInstalled = findExecutable('whisper-cli') !== null;
   const ffmpegInstalled = findExecutable('ffmpeg') !== null;
-  const modelExists = fs.existsSync(modelPath());
+  const modelExists = fs.existsSync(modelPath(model.id));
 
   let setupProblem: string | null = null;
   if (!whisperInstalled) {
@@ -40,17 +91,30 @@ export function getStatus(): WhisperStatus {
   } else if (!ffmpegInstalled) {
     setupProblem = 'ffmpeg wurde nicht gefunden. Installation: winget install Gyan.FFmpeg';
   } else if (!modelExists) {
-    setupProblem = 'Das Whisper-Modell (~1,6 GB) muss einmalig geladen werden.';
+    setupProblem = `Das Whisper-Modell „${model.title}“ (${model.sizeText}) muss einmalig geladen werden.`;
   }
-  return { whisperInstalled, ffmpegInstalled, modelExists, setupProblem };
+  return {
+    whisperInstalled,
+    ffmpegInstalled,
+    modelExists,
+    modelTitle: model.title,
+    modelSize: model.sizeText,
+    setupProblem,
+  };
 }
 
-export function downloadModel(onProgress: (fraction: number) => void): Promise<void> {
+export function downloadModel(modelId: string, onProgress: (fraction: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
-    const dest = modelPath();
+    const id = resolveModelId(modelId);
+    const dest = modelPath(id);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     const tmpDest = dest + '.download';
     const file = fs.createWriteStream(tmpDest);
+    const fail = (err: Error) => {
+      file.destroy();
+      fs.unlink(tmpDest, () => {});
+      reject(err);
+    };
 
     const request = (url: string) => {
       https
@@ -61,11 +125,13 @@ export function downloadModel(onProgress: (fraction: number) => void): Promise<v
             response.statusCode < 400 &&
             response.headers.location
           ) {
+            response.resume();
             request(response.headers.location);
             return;
           }
           if (response.statusCode !== 200) {
-            reject(new Error(`Download fehlgeschlagen (HTTP ${response.statusCode}).`));
+            response.resume();
+            fail(new Error(`Download fehlgeschlagen (HTTP ${response.statusCode}).`));
             return;
           }
           const total = parseInt(response.headers['content-length'] || '0', 10);
@@ -82,12 +148,9 @@ export function downloadModel(onProgress: (fraction: number) => void): Promise<v
             });
           });
         })
-        .on('error', (err) => {
-          fs.unlink(tmpDest, () => {});
-          reject(err);
-        });
+        .on('error', fail);
     };
-    request(MODEL_URL);
+    request(modelUrl(id));
   });
 }
 
@@ -100,6 +163,8 @@ export function transcribe(
   videoPath: string,
   start: number,
   end: number,
+  modelId: string,
+  language: string,
   onProgress: (text: string) => void
 ): Promise<WhisperSegment[]> {
   return new Promise((resolve, reject) => {
@@ -151,11 +216,11 @@ export function transcribe(
       onProgress('Transkribiere … 0 %');
       const wp = spawn(whisper, [
         '-m',
-        modelPath(),
+        modelPath(resolveModelId(modelId)),
         '-f',
         wavPath,
         '-l',
-        'auto',
+        resolveLanguage(language),
         '-oj',
         '-of',
         outBase,

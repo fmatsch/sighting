@@ -120,3 +120,14 @@ p:has(> .vision-marker) { font-style: italic; color: #666; }
 .model-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
 .model-row .ok { color: #2ea043; }
 .model-row .pending { color: #999; }
+
+#modal-box .field { margin: 12px 0; }
+#modal-box label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+#modal-box select {
+  width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: #fff; font-size: 12px;
+}
+#modal-box .hint { font-size: 11px; color: #777; margin-top: 4px; line-height: 1.4; }
+#modal-box .status-ok { color: #2ea043; font-size: 12px; margin-top: 6px; }
+#modal-box .status-error { color: #d1242f; font-size: 12px; margin-top: 6px; }
+#btn-scenes.busy { min-width: 90px; }

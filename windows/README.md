@@ -2,8 +2,10 @@
 
 Electron-Port der [macOS-App](../README.md) mit vollem Funktionsumfang: Video sichten,
 automatischer Timecode + Screenshot bei neuen Notizen, klickbare Timecodes, Marker,
-Profi-Steuerung, lokale Whisper-Transkription, KI-Bildbeschreibung mit deutscher
-Übersetzung (Ollama), Export als PDF/DOCX/CSV.
+Profi-Steuerung, lokale Whisper-Transkription (Sprache und Modellgröße wählbar,
+Strg+,), KI-Bildbeschreibung mit deutscher Übersetzung (Ollama), Schnitterkennung mit
+Beschreibung jeder Szene (Strg+Alt+B), Export als PDF/DOCX/CSV und für Premiere Pro
+(XML + SRT).
 
 ## Aus dem Quellcode bauen
 

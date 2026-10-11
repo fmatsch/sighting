@@ -84,6 +84,23 @@ export class Player {
     return null;
   }
 
+  /** Springt zum Zeitpunkt, wartet auf den fertigen Frame und liefert ihn als PNG-data-URI. */
+  async captureFrameAt(seconds: number, maxWidth = 480): Promise<string> {
+    const target = Math.max(0, Math.min(seconds, this.duration || seconds));
+    if (Math.abs(this.video.currentTime - target) > 0.001) {
+      await new Promise<void>((resolve) => {
+        const done = () => {
+          this.video.removeEventListener('seeked', done);
+          resolve();
+        };
+        this.video.addEventListener('seeked', done);
+        this.video.currentTime = target;
+        setTimeout(done, 5000); // Sicherheitsnetz, falls 'seeked' ausbleibt
+      });
+    }
+    return this.captureFrame(maxWidth);
+  }
+
   /** Zeichnet den aktuellen Frame auf ein Canvas und liefert ein PNG-data-URI. */
   captureFrame(maxWidth = 480): string {
     const vw = this.video.videoWidth || 640;

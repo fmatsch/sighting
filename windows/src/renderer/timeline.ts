@@ -1,5 +1,5 @@
 import { Player } from './player';
-import { Marker } from './markerPanel';
+import { Marker, MARKER_PALETTE } from './markerPanel';
 
 /** Zeitleiste mit Scrubbing, Marker-Punkten und In/Out-Bereich — Pendant zu
  * TimelineView.swift. */
@@ -68,7 +68,8 @@ export class Timeline {
       const dot = document.createElement('div');
       dot.className = 'marker-dot';
       dot.style.left = `${(marker.time / duration) * width}px`;
-      dot.style.background = marker.color;
+      dot.style.background =
+        MARKER_PALETTE.find((p) => p.name === marker.colorName)?.color || '#f4c430';
       dot.title = marker.label || marker.time.toFixed(0);
       dot.addEventListener('click', (e) => {
         e.stopPropagation();

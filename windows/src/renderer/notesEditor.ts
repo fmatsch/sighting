@@ -183,7 +183,7 @@ export class NotesEditor {
 
   setJSON(doc: unknown) {
     this.pendingHeader = false;
-    this.editor.commands.setContent(doc as any, { emitUpdate: false });
+    this.editor.commands.setContent(doc as any, false);
   }
 
   focus() {

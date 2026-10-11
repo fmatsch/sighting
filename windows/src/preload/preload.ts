@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('sighting', {
   openProjectDialog: () => ipcRenderer.invoke('dialog:openProject'),
   saveProjectDialog: (suggestedName: string) =>
     ipcRenderer.invoke('dialog:saveProject', suggestedName),
-  saveExportDialog: (suggestedName: string, kind: 'pdf' | 'docx' | 'csv') =>
+  saveExportDialog: (suggestedName: string, kind: 'pdf' | 'docx' | 'csv' | 'xml') =>
     ipcRenderer.invoke('dialog:saveExport', suggestedName, kind),
 
   // Projekt
@@ -31,11 +31,14 @@ contextBridge.exposeInMainWorld('sighting', {
     ipcRenderer.invoke('export:csv', targetPath, rows),
   exportPdf: (targetPath: string, html: string) =>
     ipcRenderer.invoke('export:pdf', targetPath, html),
+  exportPremiere: (targetPath: string, payload: unknown) =>
+    ipcRenderer.invoke('export:premiere', targetPath, payload),
   revealInFolder: (filePath: string) => ipcRenderer.invoke('shell:reveal', filePath),
 
   // Whisper
   whisperStatus: () => ipcRenderer.invoke('whisper:status'),
-  whisperDownloadModel: () => ipcRenderer.invoke('whisper:downloadModel'),
+  whisperModels: () => ipcRenderer.invoke('whisper:models'),
+  whisperDownloadModel: (modelId?: string) => ipcRenderer.invoke('whisper:downloadModel', modelId),
   onWhisperDownloadProgress: (cb: (fraction: number) => void) => {
     ipcRenderer.on('whisper:downloadProgress', (_e, fraction) => cb(fraction));
   },
@@ -43,6 +46,14 @@ contextBridge.exposeInMainWorld('sighting', {
     ipcRenderer.invoke('whisper:transcribe', videoPath, start, end),
   onWhisperProgress: (cb: (text: string) => void) => {
     ipcRenderer.on('whisper:progress', (_e, text) => cb(text));
+  },
+
+  // Schnitterkennung
+  sceneDetect: (videoPath: string, start: number, end: number, threshold: number) =>
+    ipcRenderer.invoke('scene:detect', videoPath, start, end, threshold),
+  sceneCancel: () => ipcRenderer.invoke('scene:cancel'),
+  onSceneProgress: (cb: (fraction: number) => void) => {
+    ipcRenderer.on('scene:progress', (_e, fraction) => cb(fraction));
   },
 
   // Vision (Ollama)

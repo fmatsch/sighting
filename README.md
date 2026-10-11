@@ -61,6 +61,11 @@ visuelles Protokoll der Sichtung.
   als **Vollautomatik**, die bei jedem gesetzten Marker automatisch eine Beschreibung
   anlegt. Da zwei Modelle geladen werden, kann der erste Durchlauf je nach freiem
   Arbeitsspeicher einige Sekunden bis über eine Minute dauern
+- **Szenen erkennen und beschreiben** — erkennt per ffmpeg die Schnitte im In/Out-Bereich
+  (oder im ganzen Video) und beschreibt pro Szene ein Standbild; die deutschen
+  Beschreibungen landen mit Standbild und Timecode des Szenenbeginns in den Notizen.
+  Mit Rückfrage (Szenenanzahl, Zeitschätzung), Fortschritt, Abbruch und einstellbarer
+  Schnitt-Empfindlichkeit (Menü „Sichten“, ⌥⌘B)
 
 ## Screenshots
 
@@ -140,7 +145,9 @@ der Mac-App — gleiche Features (Notizen, Marker, Whisper, KI-Bildbeschreibung 
 deutscher Übersetzung, PDF/DOCX/CSV-Export), eigenständiger Code-Stack (TypeScript +
 TipTap statt Swift/AppKit, da Apples Frameworks unter Windows nicht existieren). Fertige
 `.exe` unter [Releases](https://github.com/fmatsch/sighting/releases/latest), Details
-und Build-Anleitung in der [windows/README.md](windows/README.md).
+und Build-Anleitung in der [windows/README.md](windows/README.md). Die Windows-Version
+hat denselben Funktionsumfang wie die Mac-Version, inklusive Premiere-Export,
+Sprach-/Modellauswahl für Whisper und Szenenbeschreibung.
 
 > **Hinweis:** `.sighting`-Projekte sind zwischen Mac- und Windows-Version nicht
 > austauschbar (unterschiedliches internes Format).

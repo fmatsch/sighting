@@ -4,6 +4,7 @@ import * as fs from 'fs';
 
 import * as whisperService from './services/whisperService';
 import * as visionService from './services/visionService';
+import * as sceneService from './services/sceneService';
 import * as importService from './services/importService';
 import * as exportService from './services/exportService';
 import * as projectStore from './services/projectStore';
@@ -43,6 +44,9 @@ function writeSetting(key: string, value: unknown) {
   fs.writeFileSync(settingsPath(), JSON.stringify(settings), 'utf-8');
 }
 
+const selectedModelId = () => whisperService.resolveModelId(readSettings().whisperModelId);
+const selectedLanguage = () => whisperService.resolveLanguage(readSettings().whisperLanguage);
+
 let screenshotMenuItem: MenuItem | undefined;
 let fullAutoMenuItem: MenuItem | undefined;
 
@@ -71,6 +75,7 @@ function buildMenu() {
           click: () => send('exportDocx'),
         },
         { label: 'Timecodes als CSV exportieren …', click: () => send('exportCsv') },
+        { label: 'Für Premiere Pro exportieren (XML + SRT) …', click: () => send('exportPremiere') },
         { type: 'separator' },
         { role: 'quit', label: 'Beenden' },
       ],
@@ -108,6 +113,11 @@ function buildMenu() {
           accelerator: 'CmdOrCtrl+Shift+T',
           click: () => send('transcribe'),
         },
+        {
+          label: 'Transkriptions-Einstellungen (Sprache, Modell) …',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => send('openSettings'),
+        },
         { type: 'separator' },
         {
           label: 'Screenshot bei neuer Notiz einfügen',
@@ -120,6 +130,11 @@ function buildMenu() {
           label: 'Bild beschreiben (KI)',
           accelerator: 'CmdOrCtrl+Shift+B',
           click: () => send('describeFrame'),
+        },
+        {
+          label: 'Szenen erkennen und beschreiben (KI) …',
+          accelerator: 'CmdOrCtrl+Alt+B',
+          click: () => send('describeScenes'),
         },
         {
           label: 'Vollautomatik (KI-Bildbeschreibung bei jedem Marker)',
@@ -282,19 +297,40 @@ ipcMain.handle('export:pdf', async (_e, targetPath: string, html: string) => {
   printWin.destroy();
 });
 
+ipcMain.handle(
+  'export:premiere',
+  (_e, targetPath: string, payload: { project: projectStore.ProjectData; video: exportService.PremiereVideoInfo }) =>
+    exportService.generatePremiere(payload.project, payload.video, targetPath)
+);
+
 // ---------- IPC: Whisper ----------
 
-ipcMain.handle('whisper:status', () => whisperService.getStatus());
-ipcMain.handle('whisper:downloadModel', async () => {
-  await whisperService.downloadModel((fraction) => {
+ipcMain.handle('whisper:status', () => whisperService.getStatus(selectedModelId()));
+ipcMain.handle('whisper:models', () => ({
+  models: whisperService.listModels(),
+  languages: whisperService.LANGUAGES,
+  selectedModelId: selectedModelId(),
+  selectedLanguage: selectedLanguage(),
+}));
+ipcMain.handle('whisper:downloadModel', async (_e, modelId?: string) => {
+  await whisperService.downloadModel(modelId || selectedModelId(), (fraction) => {
     mainWindow?.webContents.send('whisper:downloadProgress', fraction);
   });
 });
 ipcMain.handle('whisper:transcribe', async (_e, videoPath: string, start: number, end: number) => {
-  return whisperService.transcribe(videoPath, start, end, (text) => {
+  return whisperService.transcribe(videoPath, start, end, selectedModelId(), selectedLanguage(), (text) => {
     mainWindow?.webContents.send('whisper:progress', text);
   });
 });
+
+// ---------- IPC: Schnitterkennung ----------
+
+ipcMain.handle('scene:detect', (_e, videoPath: string, start: number, end: number, threshold: number) =>
+  sceneService.detectShots(videoPath, start, end, threshold, (fraction) => {
+    mainWindow?.webContents.send('scene:progress', fraction);
+  })
+);
+ipcMain.handle('scene:cancel', () => sceneService.cancelDetection());
 
 // ---------- IPC: Vision (Ollama) ----------
 
