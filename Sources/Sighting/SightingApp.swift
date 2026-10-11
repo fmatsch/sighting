@@ -81,6 +81,10 @@ struct SightingApp: App {
                 Divider()
                 Button("Bild beschreiben (KI)") { appModel.describeCurrentFrame() }
                     .keyboardShortcut("b", modifiers: [.command, .shift])
+                Button(appModel.sceneJobText == nil
+                       ? "Szenen erkennen und beschreiben (KI) …"
+                       : "Szenenbeschreibung abbrechen") { appModel.describeScenes() }
+                    .keyboardShortcut("b", modifiers: [.command, .option])
                 Toggle("Vollautomatik (KI-Bildbeschreibung bei jedem Marker)",
                       isOn: $appModel.fullAutoMode)
             }
@@ -89,6 +93,7 @@ struct SightingApp: App {
         Settings {
             TranscriptionSettingsView()
                 .environmentObject(transcription)
+                .environmentObject(appModel)
         }
     }
 }

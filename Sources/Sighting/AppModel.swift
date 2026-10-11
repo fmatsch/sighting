@@ -36,6 +36,14 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(fullAutoMode, forKey: "fullAutoMode") }
     }
 
+    /// Schwelle des ffmpeg-Szenen-Scores (kleiner = mehr erkannte Schnitte).
+    @Published var sceneThreshold: Double {
+        didSet { UserDefaults.standard.set(sceneThreshold, forKey: "sceneThreshold") }
+    }
+    /// Kurzer Statustext, solange die Szenenbeschreibung läuft (sonst nil).
+    @Published var sceneJobText: String?
+    private var sceneJobCancelled = false
+
     private var keyMonitor: Any?
 
     init(project: ProjectStore, player: PlayerController,
@@ -48,6 +56,8 @@ final class AppModel: ObservableObject {
             ? true
             : UserDefaults.standard.bool(forKey: "includeScreenshots")
         self.fullAutoMode = UserDefaults.standard.bool(forKey: "fullAutoMode")
+        let storedThreshold = UserDefaults.standard.double(forKey: "sceneThreshold")
+        self.sceneThreshold = storedThreshold > 0 ? storedThreshold : 0.3
         AppModel.shared = self
     }
 
@@ -218,6 +228,151 @@ final class AppModel: ObservableObject {
         block.append(timecodeLinkString(time: time, visionDescription: true))
         block.append(NSAttributedString(string: "  🖼 " + text + "\n", attributes: bodyAttributes))
         NotesEditorBridge.shared.coordinator?.appendTranscript(block)
+    }
+
+    // MARK: Szenenbeschreibung (Schnitterkennung + KI)
+
+    /// Erkennt Schnitte im gewählten In/Out-Bereich (oder im ganzen Video) und
+    /// beschreibt pro Szene ein Standbild; die Beschreibungen landen mit dem
+    /// Timecode des Szenenbeginns in den Notizen. Läuft die Funktion bereits,
+    /// bricht ein erneuter Aufruf sie ab.
+    func describeScenes() {
+        if sceneJobText != nil {
+            sceneJobCancelled = true
+            sceneJobText = "Breche ab …"
+            return
+        }
+        guard let videoURL = player.videoURL else { return }
+        guard vision.setupProblem == nil else {
+            showVisionSetup = true
+            return
+        }
+        guard let ffmpeg = transcription.ffmpegPath else {
+            alertMessage = "ffmpeg fehlt. Installation im Terminal: brew install ffmpeg"
+            return
+        }
+        let range = player.selectedRange ?? (0, player.duration)
+        guard range.end - range.start > SceneDetection.minShotLength else {
+            alertMessage = "Das Video ist zu kurz für eine Szenenerkennung."
+            return
+        }
+        sceneJobCancelled = false
+        sceneJobText = "Prüfe Ollama …"
+
+        vision.checkStatus { [weak self] status in
+            guard let self else { return }
+            guard status.serverRunning else {
+                self.sceneJobText = nil
+                self.alertMessage = "Ollama läuft nicht. Im Terminal starten: ollama serve\n" +
+                    "(oder dauerhaft: brew services start ollama)"
+                return
+            }
+            guard status.allReady else {
+                self.sceneJobText = nil
+                self.showVisionSetup = true
+                return
+            }
+            self.sceneJobText = "Schnitte … 0 %"
+            let threshold = self.sceneThreshold
+            DispatchQueue.global(qos: .userInitiated).async {
+                let result = SceneDetection.detectShots(
+                    ffmpeg: ffmpeg, videoURL: videoURL, start: range.start, end: range.end,
+                    threshold: threshold,
+                    progress: { fraction in
+                        DispatchQueue.main.async {
+                            if !self.sceneJobCancelled {
+                                self.sceneJobText = "Schnitte … \(Int(fraction * 100)) %"
+                            }
+                        }
+                    },
+                    isCancelled: { self.sceneJobCancelled })
+                DispatchQueue.main.async { self.scenesDetected(result) }
+            }
+        }
+    }
+
+    private func scenesDetected(_ result: Result<[SceneDetection.Shot], SceneDetection.DetectionError>) {
+        if sceneJobCancelled {
+            sceneJobText = nil
+            return
+        }
+        switch result {
+        case .failure(let error):
+            sceneJobText = nil
+            alertMessage = error.message
+        case .success(let shots):
+            guard !shots.isEmpty else {
+                sceneJobText = nil
+                return
+            }
+            let alert = NSAlert()
+            alert.messageText = shots.count == 1
+                ? "Keine Schnitte gefunden"
+                : "\(shots.count) Szenen gefunden"
+            let minutes = max(1, Int((Double(shots.count) * 15 / 60).rounded(.up)))
+            alert.informativeText = (shots.count == 1
+                ? "Das Segment wird als eine Szene beschrieben. "
+                : "Pro Szene wird ein Standbild beschrieben und mit Timecode in die Notizen eingefügt. ") +
+                "Das dauert grob \(minutes) Min. (ca. 15 s pro Szene) und lässt sich jederzeit " +
+                "abbrechen. Mit der Empfindlichkeit in den Einstellungen (⌘,) ändert sich die Anzahl der Szenen."
+            alert.addButton(withTitle: "Beschreiben")
+            alert.addButton(withTitle: "Abbrechen")
+            guard alert.runModal() == .alertFirstButtonReturn else {
+                sceneJobText = nil
+                return
+            }
+            Task { @MainActor in await self.describeShots(shots) }
+        }
+    }
+
+    @MainActor
+    private func describeShots(_ shots: [SceneDetection.Shot]) async {
+        var failed = 0
+        for (index, shot) in shots.enumerated() {
+            if sceneJobCancelled { break }
+            sceneJobText = "Szene \(index + 1)/\(shots.count)"
+            // Etwas nach dem Schnitt, damit keine Überblendung erwischt wird.
+            let frameTime = shot.start + min(0.8, (shot.end - shot.start) / 2)
+            guard let image = player.thumbnail(at: frameTime) else {
+                failed += 1
+                continue
+            }
+            var english: String?
+            for _ in 0..<2 where english == nil && !sceneJobCancelled {   // moondream liefert gelegentlich leer
+                english = await describeAsync(image)
+            }
+            vision.lastError = nil
+            guard let english, !sceneJobCancelled else {
+                if english == nil, !sceneJobCancelled { failed += 1 }
+                continue
+            }
+            let german = await translateAsync(english) ?? english
+            insertDescription(german, time: shot.start, image: image)
+        }
+        vision.lastError = nil
+        let wasCancelled = sceneJobCancelled
+        sceneJobText = nil
+        sceneJobCancelled = false
+        if failed > 0 {
+            alertMessage = "\(failed) von \(shots.count) Szenen konnten nicht beschrieben werden" +
+                (wasCancelled ? "." : " (Modell lieferte keine Antwort).")
+        }
+    }
+
+    private func describeAsync(_ image: NSImage) async -> String? {
+        await withCheckedContinuation { continuation in
+            vision.describe(image: image) { result in
+                continuation.resume(returning: try? result.get())
+            }
+        }
+    }
+
+    private func translateAsync(_ text: String) async -> String? {
+        await withCheckedContinuation { continuation in
+            vision.translateToGerman(text) { result in
+                continuation.resume(returning: try? result.get())
+            }
+        }
     }
 
     // MARK: Transkription

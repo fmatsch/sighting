@@ -227,6 +227,24 @@ struct ControlBar: View {
                   ? "Vollautomatik: jeder Marker bekommt eine KI-Bildbeschreibung (aktiv)"
                   : "Vollautomatik: jeder Marker bekommt eine KI-Bildbeschreibung (aus)")
 
+            // Schnitte erkennen und jede Szene beschreiben (Add-on, benötigt Ollama)
+            Button {
+                app.describeScenes()
+            } label: {
+                if let text = app.sceneJobText {
+                    HStack(spacing: 5) {
+                        ProgressView().controlSize(.small)
+                        Text(text)
+                    }
+                } else {
+                    Image(systemName: "film.stack")
+                }
+            }
+            .disabled(player.videoURL == nil)
+            .help(app.sceneJobText == nil
+                  ? "Schnitte erkennen und jede Szene per KI beschreiben (In/Out-Bereich oder ganzes Video)"
+                  : "Läuft — klicken zum Abbrechen")
+
             Button {
                 withAnimation { app.showMarkerList.toggle() }
             } label: {
